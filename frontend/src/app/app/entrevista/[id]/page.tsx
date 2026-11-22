@@ -4,7 +4,9 @@ import { useRouter } from "next/navigation";
 import { api, type Interview, type LiveEvidence } from "@/lib/api";
 import { useMe } from "@/components/Shell";
 import { useInterviewRoom } from "@/lib/useInterviewRoom";
-import { Chat, Mic, MicOff, Stop } from "@/components/icons";
+import { Chat, Mic, MicOff, Settings, Stop } from "@/components/icons";
+import { Tip } from "@/components/Tip";
+import { AudioPanel } from "./AudioPanel";
 import s from "./room.module.css";
 
 function Highlighted({ text, evidence }: { text: string; evidence: LiveEvidence[] }) {
@@ -36,6 +38,7 @@ function Room({ id }: { id: string }) {
   const [endError, setEndError] = useState("");
   const [restarting, setRestarting] = useState(false);
   const [restartError, setRestartError] = useState("");
+  const [audioOpen, setAudioOpen] = useState(false);
 
   useEffect(() => {
     if (room.state !== "live") return;
@@ -90,7 +93,7 @@ function Room({ id }: { id: string }) {
     <div className={s.room}>
       <section className={s.stage} aria-label="Entrevistadora">
         <div className={s.top}>
-          {room.state === "live" ? <span className={room.reconnecting ? s.idle : s.live}>{room.reconnecting ? "Reconectando" : "Ao vivo"}</span> : <span>{srv?.kind === "rapida" ? "Mapa rápido · cerca de 3 minutos" : "Mapa de Talentos · cerca de 10 minutos"}</span>}
+          {room.state === "live" ? <span className={room.reconnecting ? s.idle : s.live}>{room.reconnecting ? "Reconectando" : "Ao vivo"}</span> : <span>{srv?.kind === "rapida" ? "Cerca de 3 minutos" : "Cerca de 10 minutos"}</span>}
           <span className={s.counters}>
             {srv && (room.state === "live" || canJoin) && <span>Tentativa {room.state === "live" ? used : next} de {max}</span>}
             {strikes > 0 && <span className={s.strikeCount}>Advertências {strikes} de {maxStrikes}</span>}
@@ -122,26 +125,19 @@ function Room({ id }: { id: string }) {
           ) : room.state === "idle" || room.state === "error" || room.state === "dropped" ? (
             <div className={s.gate}>
               <h1>{lastEnd === "silence" ? "Pausamos por falta de resposta" : room.state === "dropped" ? "A conexão caiu" : used > 0 ? "Vamos continuar?" : "Pronto para conversar com a Lia?"}</h1>
-              <p>{room.state === "dropped" || used > 0
-                ? `Você pode voltar de onde parou. Esta será a tentativa ${next} de ${max}.`
-                : "Ela vai fazer uma pergunta por vez. Responda com exemplos reais; pode pensar em voz alta."}</p>
-              <ul className={s.rules}>
-                <li>Você tem até {max} tentativas para concluir, caso a conexão caia ou você precise sair.</li>
-                <li>A Lia espera sua resposta. Depois de 10 segundos em silêncio ela pergunta se você está aí; com 30 segundos sem resposta, a tentativa é pausada.</li>
-                <li>É só uma entrevista: {maxStrikes} tentativas de mudar o rumo ou o tom da conversa cancelam a sessão.</li>
-              </ul>
+              <p className={s.rulesLine}>
+                {room.state === "dropped" || used > 0 ? `Você volta de onde parou · tentativa ${next} de ${max}` : "Uma pergunta por vez, com exemplos reais"}
+                <Tip>Até {max} tentativas se a conexão cair. Depois de 10 s em silêncio a Lia pergunta se você está aí; com 30 s, a tentativa pausa. {maxStrikes} tentativas de desviar a conversa cancelam a sessão.</Tip>
+              </p>
               {room.error && <p className="alert alert-error" role="alert">{room.error}</p>}
               {canJoin && (
                 <>
+                  <AudioPanel devices={room.devices} onTestMic={room.testMicrophone} micBusy={room.micBusy} micNotice={room.micNotice} />
                   <div className={s.controls}>
-                    <button className="btn btn-paper" onClick={room.start} disabled={restarting || room.micBusy}>
-                      <Mic />{used > 0 ? `Entrar de novo (${next} de ${max})` : "Ligar microfone e entrar"}
-                    </button>
-                    <button className={`btn ${s.testMic}`} onClick={room.testMicrophone} disabled={restarting || room.micBusy}>
-                      {room.micBusy ? "Testando microfone…" : "Testar microfone"}
+                    <button className="btn btn-primary btn-lg" onClick={room.start} disabled={restarting || room.micBusy}>
+                      <Mic />{used > 0 ? `Entrar de novo (${next} de ${max})` : "Entrar na conversa"}
                     </button>
                   </div>
-                  <p role="status">{room.micNotice}</p>
                 </>
               )}
             </div>
@@ -167,6 +163,7 @@ function Room({ id }: { id: string }) {
               <span>{room.micLost ? "Microfone desconectado" : room.muted ? "Microfone silenciado" : "Sinal do microfone"}</span>
               <meter min={0} max={1} value={room.micLevel} aria-label="Nível do microfone" />
             </div>
+            {audioOpen && <AudioPanel devices={room.devices} micBusy={room.micBusy} live />}
           </>
         )}
         <div className={s.controls}>
@@ -181,6 +178,9 @@ function Room({ id }: { id: string }) {
               </button>
             )
           )}
+          {room.state === "live" && (
+            <button className="btn" onClick={() => setAudioOpen(!audioOpen)} aria-expanded={audioOpen}><Settings />Áudio</button>
+          )}
           {room.state === "live" && room.audioBlocked && (
             <button className="btn" onClick={room.playLia}>Ativar áudio da Lia</button>
           )}
@@ -189,16 +189,15 @@ function Room({ id }: { id: string }) {
               {restarting ? "Reiniciando…" : restarted ? "Abrir nova sessão" : "Recomeçar entrevista"}
             </button>
           )}
-          <button className={`btn btn-primary ${s.end}`} onClick={end} disabled={room.state !== "live" || Boolean(finishing) || restarting || restarted}><Stop />Encerrar e ver meu Mapa</button>
+          <button className={`btn btn-primary ${s.end}`} onClick={end} disabled={room.state !== "live" || Boolean(finishing) || restarting || restarted}><Stop />Encerrar</button>
         </div>
       </section>
 
       <aside className={s.transcript} aria-labelledby="pp">
-        <h2 id="pp">Pingue-pongue</h2>
-        <p className={s.note}>Quando uma fala sua mostrar um ponto forte, ela aparece grifada.</p>
+        <h2 id="pp">Transcrição <Tip side="end">Falas suas que mostram um ponto forte aparecem destacadas.</Tip></h2>
         <p className="sr-only" role="status">{lastLia?.text}</p>
         {room.lines.length === 0 ? (
-          <p className={s.empty}><Chat />A conversa aparece aqui, escrita, enquanto vocês falam.</p>
+          <p className={s.empty}><Chat />A conversa aparece aqui.</p>
         ) : (
           <ol ref={log} className={s.log} aria-live="off">
             {room.lines.map((line) => (

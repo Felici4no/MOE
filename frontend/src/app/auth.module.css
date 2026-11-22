@@ -1,0 +1,14 @@
+.page { min-height: 100dvh; display: grid; grid-template-rows: auto 1fr; }
+.top { max-width: calc(var(--container) + 2 * var(--gutter)); width: 100%; margin: 0 auto; padding: 0 var(--gutter); height: 76px; display: flex; align-items: center; justify-content: space-between; }
+.top a { text-decoration: none; }
+.main { width: 100%; max-width: 440px; margin: 0 auto; padding: var(--space-10) var(--gutter) var(--space-16); display: grid; gap: var(--space-8); align-content: start; }
+.main h1 { font-size: 32px; }
+.main > div > p { color: var(--ink-mute); margin-top: 8px; }
+.form { display: grid; gap: var(--space-4); }
+.form > button { margin-top: var(--space-2); }
+.password { position: relative; }
+.password input { padding-right: 48px; }
+.eye { position: absolute; right: 4px; top: 50%; transform: translateY(-50%); }
+.switch { font-size: 15px; color: var(--ink-2); }
+.switch button, .switch a { background: none; border: 0; padding: 0; color: var(--accent-ink); font-weight: 500; cursor: pointer; text-decoration: underline; text-underline-offset: .2em; }
+.done { display: grid; gap: var(--space-3); }

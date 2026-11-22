@@ -1,25 +1,23 @@
 """Cobrança na Stripe (modo teste).
 
-- Individual: Checkout mode=payment, um item, com fatura (invoice_creation) para o recibo.
 - Equipe/Empresa: Checkout mode=subscription; faturas recorrentes geradas pela Stripe Billing.
 - Enterprise: sem checkout; vira um Lead para contato direto.
 - Portal de cobrança para a empresa trocar cartão, baixar faturas e cancelar.
 - Coleta de CPF/CNPJ e endereço. Stripe Tax ainda não é suportada no Brasil: STRIPE_AUTOMATIC_TAX fica false
   e a NFS-e é emitida fora da Stripe.
 Preços vêm dos lookup_keys criados por scripts/stripe_catalog.py; o valor nunca vem do cliente.
-Sem chave Stripe, só em dev, compra e assinatura são simuladas.
+Sem chave Stripe, só em dev, a assinatura é simulada.
 """
 from datetime import UTC, datetime, timedelta
 
 import stripe
 from sqlalchemy import select
-from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.core.config import Settings
 from app.core.security import new_secret
 from app.domain.plans import PLANS_BY_ID, PLANS_BY_LOOKUP
-from app.models import AccountKind, Credit, Lead, Purchase, Role, Tenant, User
+from app.models import Lead, Role, Tenant, User
 from app.repositories import Users
 from app.schemas import CheckoutOut, LeadInput
 from .errors import ServiceError, forbidden
@@ -54,37 +52,6 @@ class Billing:
         if not membership or membership.role not in (Role.owner, Role.admin):
             raise forbidden()
         return membership.tenant
-
-    # --- Individual (pagamento único) -------------------------------------------
-    def checkout_individual(self, user: User) -> CheckoutOut:
-        if user.kind != AccountKind.individual:
-            raise ServiceError(409, "Entrevistas de empresa são liberadas pelo plano da empresa.")
-        if not self.settings.individual_checkout_available:
-            raise ServiceError(503, "A compra de entrevistas individuais está pausada.")
-        plan = PLANS_BY_ID["individual"]
-        if self.settings.stripe_ready:
-            if not user.stripe_customer_id:
-                customer = stripe.Customer.create(api_key=self.key, email=user.email, name=user.name,
-                                                  metadata={"user_id": user.id}, idempotency_key=f"cus-user-{user.id}")
-                user.stripe_customer_id = customer.id
-                self.db.commit()
-            session = stripe.checkout.Session.create(
-                api_key=self.key, mode="payment", customer=user.stripe_customer_id, client_reference_id=user.id,
-                line_items=[{"price": self._price(plan.lookup_key), "quantity": 1}],
-                invoice_creation={"enabled": True, "invoice_data": {"description": "Entrevista Pontos Fortes"}},
-                customer_update={"address": "auto", "name": "auto"},
-                success_url=f"{self.settings.public_url}/app?compra=ok",
-                cancel_url=f"{self.settings.public_url}/app?compra=cancelada",
-                metadata={"user_id": user.id, "plan": plan.id}, **self._common())
-            self.db.add(Purchase(user_id=user.id, provider="stripe", provider_ref=session.id, amount_cents=plan.price_cents))
-            self.db.commit()
-            return CheckoutOut(url=session.url, mode="stripe")
-        self._dev_only()
-        purchase = Purchase(user_id=user.id, provider="dev", provider_ref="dev_" + new_secret(), amount_cents=plan.price_cents)
-        self.db.add(purchase)
-        self.db.flush()
-        self._grant(purchase)
-        return CheckoutOut(url=f"{self.settings.public_url}/app?compra=ok", mode="dev")
 
     # --- Empresa (assinatura) -----------------------------------------------
     def checkout_plan(self, user: User, plan_id: str) -> CheckoutOut:
@@ -147,11 +114,7 @@ class Billing:
             raise ServiceError(400, "Assinatura inválida.") from None
         kind, data = event["type"], event["data"]["object"]
         if kind in ("checkout.session.completed", "checkout.session.async_payment_succeeded"):
-            if data.get("mode") == "payment" and data.get("payment_status") == "paid":
-                purchase = self.db.scalar(select(Purchase).where(Purchase.provider_ref == data["id"]).with_for_update())
-                if purchase and purchase.status != "paid":
-                    self._grant(purchase)
-            elif data.get("mode") == "subscription" and data.get("subscription"):
+            if data.get("mode") == "subscription" and data.get("subscription"):
                 sub = stripe.Subscription.retrieve(data["subscription"], api_key=self.key)
                 self._sync_subscription(sub)
         elif kind in ("customer.subscription.created", "customer.subscription.updated",
@@ -177,14 +140,6 @@ class Billing:
         tenant.period_start = _ts(item.get("current_period_start") or sub.get("current_period_start"))
         tenant.period_end = _ts(item.get("current_period_end") or sub.get("current_period_end"))
         self.db.commit()
-
-    def _grant(self, purchase: Purchase) -> None:
-        purchase.status = "paid"
-        self.db.add(Credit(user_id=purchase.user_id, source="purchase", source_ref=purchase.id))
-        try:
-            self.db.commit()
-        except IntegrityError:  # webhook repetido
-            self.db.rollback()
 
     def _dev_only(self) -> None:
         if self.settings.env == "prod":

@@ -16,10 +16,11 @@ class Input(Schema):
 Password = Field(min_length=10, max_length=128)
 
 
-class IndividualSignup(Input):
+class CompanySignup(Input):
     name: str = Field(min_length=2, max_length=160)
     email: EmailStr
     password: str = Password
+    company: str = Field(min_length=2, max_length=160)
 
     @field_validator("email")
     @classmethod
@@ -27,20 +28,17 @@ class IndividualSignup(Input):
         return value.lower()
 
 
-class CompanySignup(IndividualSignup):
-    company: str = Field(min_length=2, max_length=160)
-
-
 class InviteAccept(Input):
     token: str = Field(min_length=20, max_length=128)
-    name: str = Field(min_length=2, max_length=160)
-    password: str = Password
+    name: str = Field(default="", max_length=160)
+    password: str = Field(min_length=1, max_length=128)
+    # Vagas: a pessoa autoriza a empresa a ver a análise de fit e os trechos citados.
+    consent: bool = False
 
 
 class Login(Input):
     email: EmailStr
     password: str = Field(min_length=1, max_length=128)
-    portal: Literal["empresa", "individual"]
 
     @field_validator("email")
     @classmethod
@@ -72,7 +70,6 @@ class Me(Schema):
     credits: int
     tests: list[TestInfo] = []
     stripe_enabled: bool
-    individual_checkout_available: bool
     free_interview_testing: bool = False
     can_restart_interviews: bool = False
 
@@ -111,6 +108,8 @@ class InvitePreview(Schema):
     email: str
     name: str
     tests: list[TestInfo]
+    job: str | None = None
+    has_account: bool = False
 
 
 class CheckoutOut(Schema):
@@ -128,6 +127,8 @@ class InterviewOut(Schema):
     def default_kind(cls, value):
         return value or "completa"
     share_with_tenant: bool
+    job_id: str | None = None
+    job_title: str | None = None
     started_at: datetime | None
     ended_at: datetime | None
     created_at: datetime
@@ -238,6 +239,171 @@ class PlanOut(Schema):
 
 class PlanCheckout(Input):
     plan: Literal["equipe", "empresa"]
+
+
+# --- Cultura, vagas e candidatos ------------------------------------------------
+class FileInput(Input):
+    """Arquivo enviado pelo navegador em base64 (evita multipart)."""
+    filename: str = Field(min_length=1, max_length=200)
+    content_base64: str = Field(min_length=4, max_length=8_000_000)
+
+
+class CultureValue(Schema):
+    id: str = Field(default="", max_length=60)
+    name: str = Field(min_length=2, max_length=80)
+    description: str = Field(default="", max_length=300)
+
+
+class CultureInput(Input):
+    text: str = Field(default="", max_length=40_000)
+    values: list[CultureValue] | None = Field(default=None, max_length=12)
+    file: FileInput | None = None
+
+
+class CultureOut(Schema):
+    text: str
+    source_name: str
+    values: list[CultureValue]
+    method: str
+    updated_at: datetime | None
+
+
+class JobSkill(Schema):
+    id: str = Field(default="", max_length=60)
+    name: str = Field(min_length=2, max_length=80)
+    level: Literal["essencial", "desejavel"] = "essencial"
+
+
+class JobProfile(Schema):
+    fazer: int = Field(default=50, ge=0, le=100)
+    gente: int = Field(default=50, ge=0, le=100)
+    pensar: int = Field(default=50, ge=0, le=100)
+    forca: int = Field(default=50, ge=0, le=100)
+
+
+class JobInput(Input):
+    title: str = Field(min_length=2, max_length=160)
+    description: str = Field(default="", max_length=20_000)
+    soft_skills: list[JobSkill] = Field(default_factory=list, max_length=12)
+    profile: JobProfile = Field(default_factory=JobProfile)
+    profile_note: str = Field(default="", max_length=2000)
+    test: Literal["completa", "rapida"] = "completa"
+    status: Literal["open", "closed"] = "open"
+
+
+class JobSuggestInput(Input):
+    title: str = Field(min_length=2, max_length=160)
+    description: str = Field(default="", max_length=20_000)
+
+
+class JobSuggestion(Schema):
+    soft_skills: list[JobSkill]
+    profile: JobProfile
+    profile_note: str
+    method: str
+
+
+class Funnel4(Schema):
+    imported: int
+    invited: int
+    started: int
+    analyzed: int
+
+
+class JobOut(Schema):
+    id: str
+    title: str
+    description: str
+    soft_skills: list[JobSkill]
+    profile: JobProfile
+    profile_note: str
+    test: str
+    status: str
+    created_at: datetime
+    funnel: Funnel4
+    top_fit: int | None = None
+
+
+class Evidence(Schema):
+    label: str
+    score: int
+    quote: str | None = None
+
+
+class Differential(Schema):
+    title: str
+    quote: str
+
+
+class FitOut(Schema):
+    overall: int
+    culture: int
+    profile: int
+    soft_skills: int
+    culture_detail: list[Evidence]
+    skills_detail: list[Evidence]
+    profile_detail: dict[str, int]
+    differentials: list[Differential]
+    summary: str
+    method: str
+
+
+class CandidateOut(Schema):
+    id: str
+    name: str
+    email: str
+    stage: Literal["imported", "invited", "accepted", "interviewing", "analyzed", "expired", "private"]
+    invited_at: datetime | None = None
+    analyzed_at: datetime | None = None
+    fit: FitOut | None = None
+
+
+class CandidateCreate(Input):
+    email: EmailStr
+    name: str = Field(default="", max_length=160)
+
+    @field_validator("email")
+    @classmethod
+    def lower(cls, value: str) -> str:
+        return value.lower()
+
+
+class ImportRejected(Schema):
+    row: int
+    value: str
+    reason: str
+
+
+class ImportOut(Schema):
+    added: int
+    duplicates: int
+    rejected: list[ImportRejected]
+
+
+class SendInput(Input):
+    candidate_ids: list[str] | None = Field(default=None, max_length=2000)
+
+
+class SendOut(Schema):
+    sent: int
+    emailed: int
+    skipped: int
+    links: list[dict] = []
+    message: str = ""
+
+
+class Bucket(Schema):
+    start: int
+    end: int
+    count: int
+
+
+class RankingOut(Schema):
+    job: JobOut
+    candidates: list[CandidateOut]
+    distribution: list[Bucket]
+    median: int | None
+    weights: dict[str, float]
 
 
 class LeadInput(Input):

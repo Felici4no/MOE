@@ -17,11 +17,13 @@ from sqlalchemy.orm import Session
 
 from app.core.config import Settings
 from app.core.security import digest, new_secret
-from app.models import Credit, CreditStatus, Interview, InterviewStatus, Result, User
+from sqlalchemy import select
+
+from app.models import Candidate, Credit, CreditStatus, Interview, InterviewStatus, Job, Result, User
 from app.repositories import Interviews, Users
 from app.schemas import (EvidenceInput, InterviewOut, InterviewState, JoinOut, OffScriptInput, ResultOut, ThemeScore,
                          TranscriptLine)
-from . import analysis, guardrails
+from . import analysis, guardrails, hiring
 from .agora import SILENCE_GOODBYE, AgentHandle, evidence_tool, off_script_tool, rtc_token
 from .errors import ServiceError, not_found
 from .trial_interviews import available_trial_kinds
@@ -135,15 +137,21 @@ class InterviewService:
             raise not_found("Entrevista")
         return interview
 
+    def _out(self, interview: Interview) -> InterviewOut:
+        out = InterviewOut.model_validate(interview)
+        if interview.job_id and (job := self.db.get(Job, interview.job_id)):
+            out.job_title = job.title
+        return out
+
     def mine(self, user: User) -> list[InterviewOut]:
-        return [InterviewOut.model_validate(i) for i in self.repo.for_user(user.id)]
+        return [self._out(i) for i in self.repo.for_user(user.id)]
 
     def create(self, user: User, kind: str | None = None) -> InterviewOut:
         users = Users(self.db)
         users.lock_for_interview(user.id)
         for existing in self.repo.for_user(user.id):
             if existing.status in OPEN and (kind is None or (existing.kind or "completa") == kind):
-                return InterviewOut.model_validate(existing)
+                return self._out(existing)
         trial_kind = next((test for test in available_trial_kinds(self.settings, users, user)
                            if kind is None or test == kind), None)
         if trial_kind:
@@ -167,11 +175,13 @@ class InterviewService:
             if not credit:
                 raise ServiceError(402, "Você não tem entrevistas disponíveis.")
         credit.status = CreditStatus.reserved
-        interview = Interview(user_id=user.id, tenant_id=credit.tenant_id, credit_id=credit.id, kind=credit.kind or "completa",
-                              share_with_tenant=False, attempts=[], violations=[])
+        interview = Interview(user_id=user.id, tenant_id=credit.tenant_id, job_id=credit.job_id, credit_id=credit.id,
+                              kind=credit.kind or "completa", share_with_tenant=False, attempts=[], violations=[])
         self.db.add(interview)
+        self.db.flush()
+        hiring.link_interview(self.db, interview)
         self.db.commit()
-        return InterviewOut.model_validate(interview)
+        return self._out(interview)
 
     async def restart(self, user: User, interview_id: str) -> InterviewOut:
         if user.id != self.settings.interview_master_user_id:
@@ -265,7 +275,8 @@ class InterviewService:
             context = {"attempt": n, "max_attempts": MAX_ATTEMPTS, "strikes": len(interview.violations or []),
                        "mode": interview.kind or "completa",
                        "recent": [f"{'Pessoa' if l['speaker'] == 'user' else 'Lia'}: {l['text']}"
-                                  for l in (interview.transcript or [])[-14:]]}
+                                  for l in (interview.transcript or [])[-14:]],
+                       "job": hiring.job_context(self.db, interview)}
             handle = AgentHandle()
             try:
                 await asyncio.wait_for(handle.start(self.settings, channel=channel, agent_uid=credentials.agent_uid, user_uid=credentials.uid,
@@ -461,6 +472,12 @@ class InterviewService:
             interview.share_with_tenant = False
         self.db.get(Credit, interview.credit_id).status = CreditStatus.used
         interview.status, interview.ended_at = InterviewStatus.analyzed, interview.ended_at or now()
+        self.db.flush()
+        if interview.job_id:
+            candidate = self.db.scalar(select(Candidate).where(Candidate.interview_id == interview.id))
+            if candidate and candidate.consent_at and not alert:
+                interview.share_with_tenant = True  # consentimento dado ao aceitar o convite da vaga
+                hiring.run_fit(self.db, self.settings, candidate)
         self.db.commit()
 
     def result(self, user: User, interview_id: str) -> ResultOut:
@@ -488,5 +505,11 @@ class InterviewService:
         if value and result and result.wellbeing_alert:
             raise ServiceError(409, "Este Mapa fica só com você e não pode ser compartilhado.")
         interview.share_with_tenant = value
+        if interview.job_id and (candidate := self.db.scalar(select(Candidate).where(Candidate.interview_id == interview.id))):
+            candidate.consent_at = now() if value else None
+            if value:
+                hiring.run_fit(self.db, self.settings, candidate)
+            else:
+                candidate.fit, candidate.analyzed_at = None, None
         self.db.commit()
-        return InterviewOut.model_validate(interview)
+        return self._out(interview)

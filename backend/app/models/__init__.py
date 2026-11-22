@@ -18,8 +18,8 @@ def now() -> datetime:
 
 
 class AccountKind(StrEnum):
-    individual = "individual"   # B2C: comprou a própria entrevista
-    member = "member"           # B2B: pertence a um locatário
+    individual = "individual"   # legado: contas individuais antigas (o produto agora é só para empresas)
+    member = "member"           # pertence a uma empresa (administrador ou candidato)
 
 
 class Role(StrEnum):
@@ -99,6 +99,7 @@ class Invite(Base):
     token_hash: Mapped[str] = mapped_column(String(64), unique=True)
     tests: Mapped[list] = mapped_column(JSON, default=lambda: ["completa"])
     status: Mapped[InviteStatus] = mapped_column(Enum(InviteStatus, native_enum=False), default=InviteStatus.sent)
+    job_id: Mapped[str | None] = mapped_column(ForeignKey("jobs.id", ondelete="SET NULL"), nullable=True, index=True)
     invited_by: Mapped[str] = mapped_column(ForeignKey("users.id"))
     expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     used_by: Mapped[str | None] = mapped_column(ForeignKey("users.id"), nullable=True)
@@ -106,24 +107,14 @@ class Invite(Base):
     status_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now)
 
 
-class Purchase(Base):
-    __tablename__ = "purchases"
-    id: Mapped[str] = mapped_column(String(32), primary_key=True, default=uid)
-    user_id: Mapped[str] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
-    provider: Mapped[str] = mapped_column(String(20))  # stripe | dev
-    provider_ref: Mapped[str] = mapped_column(String(255), unique=True)
-    amount_cents: Mapped[int] = mapped_column(Integer)
-    status: Mapped[str] = mapped_column(String(20), default="pending")  # pending | paid
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now)
-
-
 class Credit(Base):
-    """Uma entrevista. Origem: compra individual ou convite de locatário."""
+    """Uma entrevista. Origem: convite de uma empresa (vaga) ou reinício de teste."""
     __tablename__ = "credits"
     id: Mapped[str] = mapped_column(String(32), primary_key=True, default=uid)
     user_id: Mapped[str] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
     tenant_id: Mapped[str | None] = mapped_column(ForeignKey("tenants.id", ondelete="SET NULL"), nullable=True)
-    source: Mapped[str] = mapped_column(String(20))  # purchase | invite | restart | trial
+    job_id: Mapped[str | None] = mapped_column(ForeignKey("jobs.id", ondelete="SET NULL"), nullable=True)
+    source: Mapped[str] = mapped_column(String(20))  # invite | restart | trial
     source_ref: Mapped[str] = mapped_column(String(64), unique=True)
     kind: Mapped[str] = mapped_column(String(20), default="completa")
     status: Mapped[CreditStatus] = mapped_column(Enum(CreditStatus, native_enum=False), default=CreditStatus.available)
@@ -135,6 +126,7 @@ class Interview(Base):
     id: Mapped[str] = mapped_column(String(32), primary_key=True, default=uid)
     user_id: Mapped[str] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
     tenant_id: Mapped[str | None] = mapped_column(ForeignKey("tenants.id", ondelete="SET NULL"), nullable=True, index=True)
+    job_id: Mapped[str | None] = mapped_column(ForeignKey("jobs.id", ondelete="SET NULL"), nullable=True, index=True)
     credit_id: Mapped[str] = mapped_column(ForeignKey("credits.id"), unique=True)
     kind: Mapped[str] = mapped_column(String(20), default="completa")
     avatar_used: Mapped[bool] = mapped_column(Boolean, default=False)
@@ -176,4 +168,59 @@ class Lead(Base):
     people: Mapped[int] = mapped_column(Integer, default=0)
     message: Mapped[str] = mapped_column(Text, default="")
     tenant_id: Mapped[str | None] = mapped_column(ForeignKey("tenants.id", ondelete="SET NULL"), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now)
+
+
+class Culture(Base):
+    """A cultura da empresa: o texto que ela sobe e os valores que a IA extrai (editáveis)."""
+    __tablename__ = "cultures"
+    id: Mapped[str] = mapped_column(String(32), primary_key=True, default=uid)
+    tenant_id: Mapped[str] = mapped_column(ForeignKey("tenants.id", ondelete="CASCADE"), unique=True)
+    text: Mapped[str] = mapped_column(Text, default="")
+    source_name: Mapped[str] = mapped_column(String(200), default="")
+    # [{id, name, description}]
+    values: Mapped[list] = mapped_column(JSON, default=list)
+    method: Mapped[str] = mapped_column(String(20), default="")  # ai | catalog | manual
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now)
+
+
+class JobStatus(StrEnum):
+    open = "open"
+    closed = "closed"
+
+
+class Job(Base):
+    __tablename__ = "jobs"
+    id: Mapped[str] = mapped_column(String(32), primary_key=True, default=uid)
+    tenant_id: Mapped[str] = mapped_column(ForeignKey("tenants.id", ondelete="CASCADE"), index=True)
+    title: Mapped[str] = mapped_column(String(160))
+    description: Mapped[str] = mapped_column(Text, default="")
+    # [{id, name, level: essencial|desejavel}]
+    soft_skills: Mapped[list] = mapped_column(JSON, default=list)
+    # {fazer, gente, pensar, forca} de 0 a 100
+    profile: Mapped[dict] = mapped_column(JSON, default=dict)
+    profile_note: Mapped[str] = mapped_column(Text, default="")
+    test: Mapped[str] = mapped_column(String(20), default="completa")
+    status: Mapped[JobStatus] = mapped_column(Enum(JobStatus, native_enum=False), default=JobStatus.open)
+    created_by: Mapped[str] = mapped_column(ForeignKey("users.id"))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now)
+
+
+class Candidate(Base):
+    """Uma pessoa numa vaga: importada da planilha, convidada, entrevistada e analisada."""
+    __tablename__ = "candidates"
+    __table_args__ = (UniqueConstraint("job_id", "email"),)
+    id: Mapped[str] = mapped_column(String(32), primary_key=True, default=uid)
+    job_id: Mapped[str] = mapped_column(ForeignKey("jobs.id", ondelete="CASCADE"), index=True)
+    tenant_id: Mapped[str] = mapped_column(ForeignKey("tenants.id", ondelete="CASCADE"), index=True)
+    email: Mapped[str] = mapped_column(String(254))
+    name: Mapped[str] = mapped_column(String(160), default="")
+    invite_id: Mapped[str | None] = mapped_column(ForeignKey("invites.id", ondelete="SET NULL"), nullable=True)
+    user_id: Mapped[str | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    interview_id: Mapped[str | None] = mapped_column(ForeignKey("interviews.id", ondelete="SET NULL"), nullable=True)
+    # {overall, culture, profile, soft_skills, culture_detail, skills_detail, profile_detail,
+    #  differentials, summary, method}
+    fit: Mapped[dict | None] = mapped_column(JSON, nullable=True)
+    consent_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    analyzed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now)
