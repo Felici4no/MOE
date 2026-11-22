@@ -1,15 +1,17 @@
-# Pontos Fortes
+# Resona
 
-Entrevista por voz em tempo real com a Lia para identificar os pontos fortes de uma pessoa. Cada tema do perfil vem com a frase que a pessoa disse.
+Contratação por fit cultural. A empresa sobe a cultura, cria vagas com as soft skills e o perfil comportamental esperados, importa a planilha de candidatos e envia em lote uma entrevista por voz com a Lia. Ao fim de cada conversa, a IA gera a análise de fit (cultura, perfil, soft skills) com os diferenciais de cada pessoa, sempre com citações literais da entrevista, e a vaga mostra o ranking e a distribuição.
 
-Dois portais de acesso:
+O produto atende só empresas. O antigo portal Individual (B2C, compra avulsa) foi removido.
 
-| Portal | Quem | Como libera a entrevista |
-| --- | --- | --- |
-| **Individual** (B2C) | pessoa que compra para si | Stripe Checkout em modo teste; em dev, compra simulada |
-| **Empresa** (B2B, locatário) | RH ou liderança | cria o espaço, gera convites; cada convite aceito vira uma entrevista para o convidado |
+| Quem | O que faz |
+| --- | --- |
+| **Empresa** (administrador) | cultura (texto ou PDF/DOCX/TXT), vagas, importação .xlsx/.csv, convites em lote, ranking, distribuição e análise por candidato |
+| **Candidato** | aceita o convite da vaga autorizando a empresa a ver a análise, faz a entrevista, vê o próprio Mapa e pode retirar a autorização |
 
-O convidado decide se a empresa vê seus cinco temas principais. Falas e transcrições nunca são exibidas para a empresa.
+Uma vaga também pode ser avaliada por **simulação no escritório** (MOE): personagens com objetivo, preocupações e memória conversam com o candidato em etapas (ex.: time de devs → gerência → diretoria), e o fit inclui **hard skills**. Detalhes em [docs/moe/empresa-e-personagens.md](docs/moe/empresa-e-personagens.md); cliente teste: `cd backend && .venv/bin/python -m app.seed_cliente_teste`.
+
+A empresa nunca vê a transcrição completa nem o áudio; vê notas, diferenciais e os trechos citados. Relato de sofrimento sério mantém a análise privada.
 
 ```text
 Navegador (Next.js) ──mic──▶ Agora RTC ◀── agente Agora (STT → LLM → TTS)
@@ -31,7 +33,7 @@ cd backend && python3.12 -m venv .venv && .venv/bin/pip install -e '.[test]'
 cd frontend && npm ci && npm run dev
 ```
 
-Abra http://localhost:3000. Sem `.env`, a API usa SQLite em `.runtime/` e a compra individual é simulada. Para a sala de entrevista funcionar, preencha `AGORA_APP_ID` e `AGORA_APP_CERTIFICATE` no `.env` da raiz (veja [deploy/runtime.env.example](deploy/runtime.env.example)). A sala oferece um teste local de microfone antes da entrevista e sinaliza o nível de entrada durante a conversa.
+Abra http://localhost:3000. Sem `.env`, a API usa SQLite em `.runtime/` e a assinatura é simulada. Com `ANALYST_LLM_API_KEY`, a extração de valores da cultura, a sugestão de soft skills e a análise de fit usam IA; sem ela, valem os sinais do catálogo (`backend/app/domain/hiring.py`). Para a sala de entrevista funcionar, preencha `AGORA_APP_ID` e `AGORA_APP_CERTIFICATE` no `.env` da raiz (veja [deploy/runtime.env.example](deploy/runtime.env.example)). A sala oferece um teste local de microfone antes da entrevista e sinaliza o nível de entrada durante a conversa.
 
 Testes:
 
@@ -79,12 +81,11 @@ Não é teste psicológico validado e não decide contratação, demissão ou pr
 
 | Plano | Cobrança | Valor estimado | Entrevistas |
 | --- | --- | --- | --- |
-| Individual | pagamento único (Checkout `payment`, com fatura) | R$ 149 | 1, com 3 tentativas |
 | Equipe | assinatura mensal (Checkout `subscription`) | R$ 890/mês | 15 por mês |
 | Empresa | assinatura mensal | R$ 2.490/mês | 50 por mês |
 | Enterprise | sempre contato direto (`/planos` → lead) | sob consulta | sob medida |
 
-Os valores são estimativas para validar com o comercial (`backend/app/domain/plans.py`). Os três planos de empresa anunciam integração com ATS como a Gupy; não há integração técnica no código. Empresas sem plano testam com 2 convites.
+Os valores são estimativas para validar com o comercial (`backend/app/domain/plans.py`). Empresas sem plano testam com 5 convites.
 
 - Chaves Stripe ficam fora do repositório, em `~/.config/pontos-fortes/stripe.env` (ou no caminho de `PF_STRIPE_ENV_FILE`), com `STRIPE_SECRET_KEY=sk_test_…` e `STRIPE_WEBHOOK_SECRET`. A API recusa chave que não seja de teste.
 - `backend/.venv/bin/python scripts/stripe_catalog.py --apply` cria produtos e preços em BRL com `lookup_key` (idempotente). O valor nunca vem do navegador.

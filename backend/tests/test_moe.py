@@ -105,7 +105,11 @@ def test_participant_plays_and_sees_point_reading_without_score(app):
     assert a["points"][0]["quotes"] == [ANSWERS[0]]
     flat = str(a)
     assert "score" not in flat and "nota" not in [k for p in a["points"] for k in p]
-    assert "Temos uma entrega hoje" not in flat  # fala de personagem nunca vira evidência
+    assert "Temos uma entrega hoje" not in str(a["points"])  # fala de personagem nunca vira evidência
+    # A conversa fica registrada à parte: o que cada personagem disse e o que a resposta tocou.
+    conv = a["conversations"]
+    assert [c["persona"] for c in conv] == ["Maia", "Léo", "Nara"] and conv[0]["npc_line"].startswith("Temos uma entrega hoje")
+    assert conv[0]["quote"] == ANSWERS[0] and conv[0]["points"] == ["Priorização"]
     assert "simulação fictícia" in a["notice"]
 
 

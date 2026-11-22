@@ -5,7 +5,8 @@ import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useId, useState } from "react";
 import { api } from "@/lib/api";
 import { useMe } from "@/components/Shell";
-import type { MoeCatalog, MoePersona, MoePoint, MoeScenario, MoeScene, SharedResult, Stance, Tone, VoiceTone } from "@/lib/moe/api";
+import type { Concern, MoeCatalog, MoePersona, MoePoint, MoeScenario, MoeScene, SharedResult, Stance, Tone, VoiceTone } from "@/lib/moe/api";
+import { Tip } from "@/components/Tip";
 import { POSTURA, TOM } from "@/lib/moe/script";
 import s from "./moe-admin.module.css";
 
@@ -46,11 +47,12 @@ export default function MoeAdmin() {
 
   return (
     <div className={s.page}>
-      <header className={s.head}>
-        <p className={s.kicker}>MOE / MYOFFICEEXPERIENCE</p>
-        <h1>Simulações do escritório</h1>
-        <p>Defina os pontos que quer explorar, dê voz e personalidade aos personagens e ajuste a situação. A leitura de cada simulação é da pessoa; a empresa só vê o que ela decidir compartilhar.</p>
-        <Link href="/app/empresa" className={s.back}>← Voltar para a empresa</Link>
+      <header className="page-head">
+        <div>
+          <h1>Simulações do escritório</h1>
+          <p>Personagens com objetivo e memória conversam com o candidato. <Tip>A leitura é da pessoa. Em vagas, a análise de fit chega à empresa porque o candidato autorizou ao aceitar o convite.</Tip></p>
+        </div>
+        <Link href="/app/empresa" className="btn btn-ghost">Vagas</Link>
       </header>
 
       <div role="tablist" aria-label="Seções" className={s.tabs}>
@@ -79,9 +81,9 @@ type Run = (fn: () => Promise<unknown>, ok: string) => Promise<boolean>;
 
 /* ----------------------------------- Cenários ----------------------------------- */
 
-const emptyScenario = (personas: MoePersona[]): Omit<MoeScenario, "id" | "status" | "version" | "published_at" | "dirty" | "cast_size"> => ({
-  title: "", description: "", pressure: 3, tone: "neutro", point_ids: [],
-  scenes: [{ id: "", persona_id: personas[0]?.id ?? "", line: "", point_ids: [] }],
+const emptyScenario = (personas: MoePersona[]): Omit<MoeScenario, "id" | "status" | "version" | "published_at" | "dirty" | "cast_size" | "job_title"> => ({
+  title: "", description: "", pressure: 3, tone: "neutro", point_ids: [], follow_ups: true,
+  scenes: [{ id: "", persona_id: personas[0]?.id ?? "", line: "", point_ids: [], stage: "" }],
 });
 
 function Scenarios({ catalog, scenarios, points, personas, run }: { catalog: MoeCatalog; scenarios: MoeScenario[]; points: MoePoint[]; personas: MoePersona[]; run: Run }) {
@@ -116,10 +118,11 @@ function Scenarios({ catalog, scenarios, points, personas, run }: { catalog: Moe
                     {sc.status === "published" ? `Publicado · v${sc.version}` : "Rascunho"}
                   </span>
                   {sc.dirty && <span className={s.badgeWarn}>Alterações não publicadas</span>}
+                  {sc.job_title && <span className={s.badge}>Vaga · {sc.job_title}</span>}
                 </div>
-                <p className={s.meta}>{sc.scenes.length} cenas · {sc.cast_size} personagens · pressão {catalog.pressure[String(sc.pressure)]} · clima {sc.tone}</p>
+                <p className={s.meta}>{sc.scenes.length} cenas · {sc.cast_size} personagens · pressão {catalog.pressure[String(sc.pressure)]} · clima {sc.tone}{sc.follow_ups ? " · personagens aprofundam" : ""}</p>
                 <ol className={s.sceneList}>
-                  {sc.scenes.map((x) => <li key={x.id}><b>{personas.find((p) => p.id === x.persona_id)?.name ?? "?"}</b> — {x.line}</li>)}
+                  {sc.scenes.map((x) => <li key={x.id}>{x.stage && <span className={s.stageTag}>{x.stage}</span>}<b>{personas.find((p) => p.id === x.persona_id)?.name ?? "?"}</b> — {x.line}</li>)}
                 </ol>
                 <div className={s.actions}>
                   <button className="btn" onClick={() => setEditing({ ...sc })}>Editar</button>
@@ -143,8 +146,8 @@ function Scenarios({ catalog, scenarios, points, personas, run }: { catalog: Moe
 }
 
 function strip(v: ReturnType<typeof emptyScenario> & { id?: string }) {
-  return { title: v.title, description: v.description, pressure: v.pressure, tone: v.tone, point_ids: v.point_ids,
-    scenes: v.scenes.map((x) => ({ id: x.id, persona_id: x.persona_id, line: x.line, point_ids: x.point_ids })) };
+  return { title: v.title, description: v.description, pressure: v.pressure, tone: v.tone, point_ids: v.point_ids, follow_ups: v.follow_ups,
+    scenes: v.scenes.map((x) => ({ id: x.id, persona_id: x.persona_id, line: x.line, point_ids: x.point_ids, stage: x.stage ?? "" })) };
 }
 
 function ScenarioForm({ catalog, value, points, personas, onSave, onCancel }: {
@@ -177,6 +180,10 @@ function ScenarioForm({ catalog, value, points, personas, onSave, onCancel }: {
           </select>
         </div>
       </div>
+      <label className={s.toggle}>
+        <input type="checkbox" checked={v.follow_ups} onChange={(e) => setV({ ...v, follow_ups: e.target.checked })} />
+        <span>Personagens reagem e aprofundam <Tip>Depois de cada resposta, o personagem reage e faz uma pergunta sobre o que mais o preocupa e ainda não ficou claro. Cada cena vira duas trocas.</Tip></span>
+      </label>
       <fieldset className={s.fieldset}>
         <legend>Pontos que este cenário explora</legend>
         {points.length === 0 && <p className={s.hint}>Crie pontos na aba “Pontos”.</p>}
@@ -198,6 +205,10 @@ function ScenarioForm({ catalog, value, points, personas, onSave, onCancel }: {
                   {personas.map((p) => <option key={p.id} value={p.id}>{p.name} · {p.role}</option>)}
                 </select>
               </div>
+              <div className="field">
+                <label htmlFor={`${id}s${i}e`}>Etapa <span className={s.hint}>(opcional)</span></label>
+                <input id={`${id}s${i}e`} maxLength={40} value={x.stage ?? ""} placeholder="Time de desenvolvimento, Gerência…" onChange={(e) => setScene(i, { stage: e.target.value })} />
+              </div>
               <div className={s.sceneTools}>
                 <button type="button" className="btn btn-ghost" disabled={i === 0} onClick={() => move(i, -1)} aria-label={`Subir cena ${i + 1}`}>↑</button>
                 <button type="button" className="btn btn-ghost" disabled={i === v.scenes.length - 1} onClick={() => move(i, 1)} aria-label={`Descer cena ${i + 1}`}>↓</button>
@@ -215,7 +226,7 @@ function ScenarioForm({ catalog, value, points, personas, onSave, onCancel }: {
         ))}
       </ol>
       <div className={s.actions}>
-        <button type="button" className="btn" disabled={v.scenes.length >= 6} onClick={() => setV({ ...v, scenes: [...v.scenes, { id: "", persona_id: personas[0]?.id ?? "", line: "", point_ids: [] }] })}>Adicionar cena</button>
+        <button type="button" className="btn" disabled={v.scenes.length >= 6} onClick={() => setV({ ...v, scenes: [...v.scenes, { id: "", persona_id: personas[0]?.id ?? "", line: "", point_ids: [], stage: v.scenes[v.scenes.length - 1]?.stage ?? "" }] })}>Adicionar cena</button>
       </div>
       {cast.size > catalog.max_cast && <p className={s.error} role="alert">Use no máximo {catalog.max_cast} personagens diferentes.</p>}
       <div className={s.actions}>
@@ -276,7 +287,8 @@ function Points({ points, run }: { points: MoePoint[]; run: Run }) {
 /* --------------------------------- Personagens --------------------------------- */
 
 function Personas({ catalog, personas, run }: { catalog: MoeCatalog; personas: MoePersona[]; run: Run }) {
-  const blank = { name: "", role: "", traits: "", speaking_style: "", stance: "colaborativa" as Stance, voice_tone: "serena" as VoiceTone, voice_id: "", look: 1 };
+  const blank = { name: "", role: "", traits: "", speaking_style: "", stance: "colaborativa" as Stance, voice_tone: "serena" as VoiceTone, voice_id: "", look: 1,
+    goal: "", memory: true, concerns: [] as (Omit<Concern, "keywords"> & { keywords: string })[] };
   const [form, setForm] = useState<typeof blank & { id?: string }>(blank);
   const id = useId();
   const voices = catalog.voices.voices;
@@ -284,7 +296,8 @@ function Personas({ catalog, personas, run }: { catalog: MoeCatalog; personas: M
     <div className={s.split}>
       <form className={s.form} onSubmit={async (e) => {
         e.preventDefault();
-        const body = { ...form, id: undefined, traits: form.traits.split(",").map((x) => x.trim()).filter(Boolean) };
+        const body = { ...form, id: undefined, traits: form.traits.split(",").map((x) => x.trim()).filter(Boolean),
+          concerns: form.concerns.filter((c) => c.topic.trim() && c.probe.trim()).map((c) => ({ ...c, keywords: c.keywords.split(",").map((x) => x.trim()).filter(Boolean) })) };
         delete (body as { id?: string }).id;
         if (await run(() => api(form.id ? `/moe/personas/${form.id}` : "/moe/personas", { method: form.id ? "PUT" : "POST", body }), "Personagem salvo.")) setForm(blank);
       }}>
@@ -303,6 +316,33 @@ function Personas({ catalog, personas, run }: { catalog: MoeCatalog; personas: M
             </select>
           </div>
           <div className="field"><label htmlFor={`${id}sp`}>Jeito de falar</label><textarea id={`${id}sp`} rows={2} maxLength={400} value={form.speaking_style} onChange={(e) => setForm({ ...form, speaking_style: e.target.value })} placeholder="Frases curtas, sempre fecha com uma pergunta aberta." /></div>
+        </fieldset>
+        <fieldset className={s.fieldset}>
+          <legend>Mente do personagem <Tip>O que ele quer da conversa e o que o preocupa. Ele reage quando a pessoa cobre um tema e pergunta pelo que ficou faltando.</Tip></legend>
+          <div className="field"><label htmlFor={`${id}g`}>Objetivo na conversa</label><textarea id={`${id}g`} rows={2} maxLength={300} value={form.goal} onChange={(e) => setForm({ ...form, goal: e.target.value })} placeholder="Proteger o foco da sprint sem travar o negócio." /></div>
+          <label className={s.toggle}>
+            <input type="checkbox" checked={form.memory} onChange={(e) => setForm({ ...form, memory: e.target.checked })} />
+            <span>Lembra o que a pessoa disse a outros personagens</span>
+          </label>
+          <ol className={s.concerns}>
+            {form.concerns.map((c, i) => {
+              const upd = (patch: Partial<typeof c>) => setForm({ ...form, concerns: form.concerns.map((x, j) => (j === i ? { ...x, ...patch } : x)) });
+              return (
+                <li key={i} className={s.concern}>
+                  <div className={s.row}>
+                    <div className="field"><label htmlFor={`${id}c${i}t`}>Preocupação {i + 1}</label><input id={`${id}c${i}t`} maxLength={60} value={c.topic} onChange={(e) => upd({ topic: e.target.value })} placeholder="Escopo mínimo" /></div>
+                    <div className="field"><label htmlFor={`${id}c${i}k`}>Palavras-chave</label><input id={`${id}c${i}k`} value={c.keywords} onChange={(e) => upd({ keywords: e.target.value })} placeholder="mvp, escopo, primeira versão" /></div>
+                  </div>
+                  <div className="field"><label htmlFor={`${id}c${i}p`}>Pergunta se ficar faltando</label><input id={`${id}c${i}p`} maxLength={240} value={c.probe} onChange={(e) => upd({ probe: e.target.value })} placeholder="O que entra na primeira versão e o que fica de fora?" /></div>
+                  <div className={s.row}>
+                    <div className="field"><label htmlFor={`${id}c${i}a`}>Reação se aparecer <span className={s.hint}>(opcional)</span></label><input id={`${id}c${i}a`} maxLength={200} value={c.ack} onChange={(e) => upd({ ack: e.target.value })} placeholder="Bom ter o escopo fechado." /></div>
+                    <div className={s.sceneTools}><button type="button" className="btn btn-ghost" onClick={() => setForm({ ...form, concerns: form.concerns.filter((_, j) => j !== i) })}>Remover</button></div>
+                  </div>
+                </li>
+              );
+            })}
+          </ol>
+          <div><button type="button" className="btn btn-sm" disabled={form.concerns.length >= 5} onClick={() => setForm({ ...form, concerns: [...form.concerns, { topic: "", keywords: "", probe: "", ack: "" }] })}>Adicionar preocupação</button></div>
         </fieldset>
         <fieldset className={s.fieldset}>
           <legend>Voz</legend>
@@ -342,8 +382,11 @@ function Personas({ catalog, personas, run }: { catalog: MoeCatalog; personas: M
             <p className={s.meta}>postura {POSTURA[p.stance]} · voz {TOM[p.voice_tone]}{p.voice_id ? ` · ${p.voice_id}` : " · voz padrão"}{p.voice_id && !p.voice_verified ? " (fora do catálogo atual)" : ""} · aparência {catalog.looks[String(p.look)]}</p>
             {p.traits.length > 0 && <p>{p.traits.join(" · ")}</p>}
             {p.speaking_style && <p className={s.quote}>“{p.speaking_style}”</p>}
+            {p.goal && <p className={s.meta}><b>Objetivo:</b> {p.goal}</p>}
+            {p.concerns?.length > 0 && <p className={s.chips}>{p.concerns.map((c) => <span key={c.topic} className={s.chipStatic}>{c.topic}</span>)}{p.memory && <span className={s.chipStatic}>com memória</span>}</p>}
             <div className={s.actions}>
-              <button className="btn" onClick={() => setForm({ id: p.id, name: p.name, role: p.role, traits: p.traits.join(", "), speaking_style: p.speaking_style, stance: p.stance, voice_tone: p.voice_tone, voice_id: p.voice_id, look: p.look })}>Editar</button>
+              <button className="btn" onClick={() => setForm({ id: p.id, name: p.name, role: p.role, traits: p.traits.join(", "), speaking_style: p.speaking_style, stance: p.stance, voice_tone: p.voice_tone, voice_id: p.voice_id, look: p.look,
+                goal: p.goal ?? "", memory: p.memory ?? true, concerns: (p.concerns ?? []).map((c) => ({ ...c, keywords: c.keywords.join(", ") })) })}>Editar</button>
               <button className="btn btn-ghost" disabled={p.in_use} title={p.in_use ? "Troque o personagem nas cenas antes de excluir" : undefined}
                 onClick={() => run(() => api(`/moe/personas/${p.id}`, { method: "DELETE" }), "Personagem excluído.")}>Excluir</button>
             </div>

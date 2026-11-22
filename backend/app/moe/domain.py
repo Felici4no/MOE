@@ -31,6 +31,7 @@ MAX_POINTS_PER_TENANT = 30
 MAX_PERSONAS_PER_TENANT = 20
 MAX_SCENES, MAX_CAST = 6, 4
 MAX_SIGNALS, MAX_TRAITS = 6, 5
+MAX_CONCERNS = 5
 MAX_ANSWER = 2000
 
 # Mesmos limites da Lia: nunca explorar temas sensíveis nem atributos protegidos.

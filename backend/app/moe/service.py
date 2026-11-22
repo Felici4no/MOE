@@ -10,7 +10,7 @@ from app.models import Role, User, now
 from app.repositories import Users
 from app.services.errors import ServiceError, forbidden, not_found
 
-from . import analysis, template
+from . import analysis, mind, template
 from .domain import (LOOKS, MAX_CAST, MAX_POINTS_PER_TENANT, MAX_PERSONAS_PER_TENANT, PRESSURE, STANCES, TONES,
                      VOICE_TONES, sensitive_terms, voice_catalog)
 from .models import MoePersona, MoePoint, MoeScenario, MoeSession
@@ -123,7 +123,8 @@ class MoeAdmin(_Base):
         return [self._persona_out(p, used, voices) for p in self._personas()]
 
     def save_persona(self, data: PersonaIn, pid: str | None = None) -> PersonaOut:
-        _blocked(data.name, data.role, data.speaking_style, *data.traits)
+        _blocked(data.name, data.role, data.speaking_style, data.goal, *data.traits,
+                 *(f"{c.topic} {c.probe} {c.ack}" for c in data.concerns))
         if data.voice_id and data.voice_id not in self._voice_ids():
             raise ServiceError(422, "Essa voz não está no catálogo configurado. Escolha uma voz da lista ou deixe em branco.")
         if pid:
@@ -135,6 +136,7 @@ class MoeAdmin(_Base):
             self.db.add(persona)
         for k, v in data.model_dump().items():
             setattr(persona, k, v)
+        persona.concerns = [c.model_dump() for c in data.concerns]
         self.db.commit()
         return self._persona_out(persona, self._used()[1], self._voice_ids())
 
@@ -153,9 +155,11 @@ class MoeAdmin(_Base):
         used_points = list(dict.fromkeys(sc.point_ids + [pid for s in sc.scenes for pid in s.get("point_ids", [])]))
         return {
             "id": sc.id, "title": sc.title, "description": sc.description, "pressure": sc.pressure, "tone": sc.tone,
+            "follow_ups": bool(sc.follow_ups),
             "scenes": [dict(s) for s in sc.scenes],
             "personas": {pid: {k: getattr(personas[pid], k) for k in
-                               ("id", "name", "role", "traits", "speaking_style", "stance", "voice_tone", "voice_id", "look")}
+                               ("id", "name", "role", "traits", "speaking_style", "stance", "voice_tone", "voice_id", "look",
+                                "goal", "concerns", "memory")}
                          for pid in cast},
             "points": {pid: {k: getattr(points[pid], k) for k in ("id", "name", "description", "signals", "weight")}
                        for pid in used_points},
@@ -164,10 +168,13 @@ class MoeAdmin(_Base):
     def _out(self, sc: MoeScenario) -> ScenarioOut:
         dirty = sc.status == "published" and sc.published is not None and \
             {k: v for k, v in self._snapshot(sc).items()} != sc.published
+        from app.models import Job
+        job = self.db.scalar(select(Job).where(Job.scenario_id == sc.id))
         return ScenarioOut(id=sc.id, title=sc.title, description=sc.description, pressure=sc.pressure, tone=sc.tone,
                            point_ids=sc.point_ids, scenes=[SceneOut(**s) for s in sc.scenes], status=sc.status,
                            version=sc.version, published_at=sc.published_at, dirty=dirty,
-                           cast_size=len({s["persona_id"] for s in sc.scenes}))
+                           cast_size=len({s["persona_id"] for s in sc.scenes}), follow_ups=bool(sc.follow_ups),
+                           job_title=job.title if job else None)
 
     def list_scenarios(self) -> list[ScenarioOut]:
         return [self._out(sc) for sc in self._scenarios()]
@@ -193,12 +200,13 @@ class MoeAdmin(_Base):
             sid_ = s.id if s.id and s.id not in taken else _slug(s.line.split("?")[0][:30], taken)
             taken.add(sid_)
             scenes.append({"id": sid_, "persona_id": s.persona_id, "line": " ".join(s.line.split()),
-                           "point_ids": list(dict.fromkeys(s.point_ids))})
+                           "point_ids": list(dict.fromkeys(s.point_ids)), "stage": " ".join(s.stage.split())})
         sc = self._get(MoeScenario, sid, "Cenário") if sid else MoeScenario(tenant_id=self.tenant_id)
         if not sid:
             self.db.add(sc)
         sc.title, sc.description, sc.pressure, sc.tone = data.title, data.description, data.pressure, data.tone
         sc.point_ids, sc.scenes = list(dict.fromkeys(data.point_ids)), scenes
+        sc.follow_ups = data.follow_ups
         self.db.commit()
         return self._out(sc)
 
@@ -251,18 +259,47 @@ class MoeAdmin(_Base):
                  "answers": [{"scene_id": a["scene_id"], "quote": a["quote"]} for a in s.answers]} for s, u in rows]
 
 
+def _turns_per_scene(snap: dict) -> int:
+    return 2 if snap.get("follow_ups") else 1
+
+
+def _total_turns(snap: dict) -> int:
+    return len(snap["scenes"]) * _turns_per_scene(snap)
+
+
+def _pending(s: "MoeSession") -> tuple[dict, int] | None:
+    """Cena e turno que esperam resposta (uma voz por vez)."""
+    per = _turns_per_scene(s.snapshot)
+    done = {(a["scene_id"], a.get("turn", 0)) for a in s.answers}
+    for scene in s.snapshot["scenes"]:
+        for turn in range(per):
+            if (scene["id"], turn) not in done:
+                return scene, turn
+    return None
+
+
 class MoePlayer(_Base):
     """Qualquer pessoa do locatário. Só enxerga as próprias sessões."""
 
+    @property
+    def _key(self) -> str:
+        return self.settings.analyst_api_key.get_secret_value()
+
     def available(self) -> list[dict]:
+        from app.models import Job
         rows = self.db.scalars(select(MoeScenario).where(MoeScenario.tenant_id == self.tenant_id, MoeScenario.status == "published"))
-        return [{"id": sc.id, "title": sc.published["title"], "description": sc.published["description"],
-                 "scenes": len(sc.published["scenes"]), "version": sc.version} for sc in rows]
+        out = []
+        for sc in rows:
+            job = self.db.scalar(select(Job).where(Job.scenario_id == sc.id))
+            out.append({"id": sc.id, "title": sc.published["title"], "description": sc.published["description"],
+                        "scenes": len(sc.published["scenes"]), "version": sc.version, "job_title": job.title if job else None,
+                        "stages": list(dict.fromkeys(x.get("stage") or "" for x in sc.published["scenes"] if x.get("stage")))})
+        return out
 
     def mine(self) -> list[dict]:
         rows = self.db.scalars(select(MoeSession).where(MoeSession.user_id == self.user.id).order_by(MoeSession.created_at.desc()))
         return [{"id": s.id, "title": s.snapshot["title"], "status": s.status, "answered": len(s.answers),
-                 "scenes": len(s.snapshot["scenes"]), "share_with_tenant": s.share_with_tenant,
+                 "scenes": _total_turns(s.snapshot), "share_with_tenant": s.share_with_tenant,
                  "created_at": s.created_at, "finished_at": s.finished_at} for s in rows]
 
     def _mine(self, sid: str) -> MoeSession:
@@ -271,69 +308,125 @@ class MoePlayer(_Base):
             raise not_found("Sessão")
         return s
 
-    @staticmethod
-    def view(s: MoeSession) -> dict:
+    def view(self, s: MoeSession) -> dict:
         snap = s.snapshot
-        answered = {a["scene_id"] for a in s.answers}
+        per = _turns_per_scene(snap)
+        answered = {(a["scene_id"], a.get("turn", 0)): a["quote"] for a in s.answers}
+        pending = _pending(s)
+        job_title = None
+        if s.candidate_id:
+            from app.models import Candidate, Job
+            cand = self.db.get(Candidate, s.candidate_id)
+            job = self.db.get(Job, cand.job_id) if cand else None
+            job_title = job.title if job else None
         return {
             "id": s.id, "status": s.status, "version": s.version, "title": snap["title"], "description": snap["description"],
-            "pressure": snap["pressure"], "tone": snap["tone"],
+            "pressure": snap["pressure"], "tone": snap["tone"], "follow_ups": bool(snap.get("follow_ups")), "job_title": job_title,
             # O participante vê quem fala e o perfil de voz; os pontos explorados ficam ocultos até o fim.
             "cast": [{k: p[k] for k in ("id", "name", "role", "look", "voice_tone", "voice_id", "traits", "speaking_style", "stance")}
                      for p in snap["personas"].values()],
-            "scenes": [{"id": sc["id"], "persona_id": sc["persona_id"], "line": sc["line"], "answered": sc["id"] in answered}
-                       for sc in snap["scenes"]],
-            "answers": [{"scene_id": a["scene_id"], "quote": a["quote"]} for a in s.answers],
+            "scenes": [{"id": sc["id"], "persona_id": sc["persona_id"], "line": sc["line"], "stage": sc.get("stage", ""),
+                        "answered": all((sc["id"], t) in answered for t in range(per))} for sc in snap["scenes"]],
+            # Falas dos personagens já ditas, com a resposta de cada uma (a última fica aberta).
+            "turns": [{"scene_id": d["scene_id"], "turn": d["turn"], "persona_id": d["persona_id"], "line": d["text"],
+                       "source": d.get("source", "roteiro"), "answer": answered.get((d["scene_id"], d["turn"]))}
+                      for d in s.dialogue or [] if d["speaker"] == "npc"],
+            "total_turns": _total_turns(snap),
+            "current": {"scene_id": pending[0]["id"], "turn": pending[1]} if pending and s.status == "playing" else None,
+            "answers": [{"scene_id": a["scene_id"], "turn": a.get("turn", 0), "quote": a["quote"]} for a in s.answers],
             "analysis": s.analysis if s.status == "finished" and not s.wellbeing_alert else None,
             "wellbeing_alert": s.wellbeing_alert,
             "share_with_tenant": s.share_with_tenant,
         }
 
     def start(self, scenario_id: str) -> dict:
+        from app.services import hiring
         sc = self.db.get(MoeScenario, scenario_id)
         if not sc or sc.tenant_id != self.tenant_id or sc.status != "published" or not sc.published:
             raise not_found("Cenário")
+        # Candidato de vaga: uma sessão por vaga; volta para a que já existe.
+        existing = self.db.scalar(select(MoeSession).where(MoeSession.scenario_id == sc.id, MoeSession.user_id == self.user.id,
+                                                           MoeSession.candidate_id.is_not(None)))
+        if existing:
+            return self.view(existing)
         s = MoeSession(tenant_id=self.tenant_id, scenario_id=sc.id, user_id=self.user.id, version=sc.version,
-                       snapshot=sc.published, answers=[])
+                       snapshot=sc.published, answers=[], dialogue=[])
         self.db.add(s)
+        self.db.flush()
+        candidate = hiring.link_session(self.db, s)
+        s.candidate_id = candidate.id if candidate else None
+        first = sc.published["scenes"][0]
+        s.dialogue = [{"scene_id": first["id"], "turn": 0, "speaker": "npc", "persona_id": first["persona_id"],
+                       **{k: v for k, v in mind.opening(sc.published, first, []).items() if k != "recalls"}}]
         self.db.commit()
         return self.view(s)
 
     def get(self, sid: str) -> dict:
         return self.view(self._mine(sid))
 
-    def answer(self, sid: str, scene_id: str, text: str) -> dict:
+    def answer(self, sid: str, scene_id: str, text: str, turn: int | None = None) -> dict:
         s = self._mine(sid)
         if s.status != "playing":
             raise ServiceError(409, "Esta simulação já terminou.")
-        pending = [sc["id"] for sc in s.snapshot["scenes"] if sc["id"] not in {a["scene_id"] for a in s.answers}]
-        if not pending or pending[0] != scene_id:
+        pending = _pending(s)
+        if not pending or pending[0]["id"] != scene_id or (turn is not None and pending[1] != turn):
             raise ServiceError(409, "Responda a cena atual da simulação.")
         quote = " ".join(text.split())
         if not quote:
             raise ServiceError(422, "Escreva sua resposta antes de enviar.")
-        s.answers = [*s.answers, {"scene_id": scene_id, "quote": quote, "at": now().isoformat()}]
+        scene, turn = pending
+        dialogue = list(s.dialogue or [])
+        if not dialogue:  # sessões antigas, de antes da conversa viva
+            dialogue = [{"scene_id": scene["id"], "turn": 0, "speaker": "npc", "persona_id": scene["persona_id"],
+                         "text": scene["line"], "source": "roteiro"}]
+        dialogue.append({"scene_id": scene["id"], "turn": turn, "speaker": "person", "persona_id": scene["persona_id"], "text": quote})
+        s.answers = [*s.answers, {"scene_id": scene["id"], "turn": turn, "quote": quote, "at": now().isoformat()}]
+        nxt = _pending(s)
+        if nxt and nxt[0]["id"] == scene["id"]:
+            reaction = mind.react(s.snapshot, scene, dialogue, quote, self._key, self.settings.analyst_model)
+            dialogue.append({"scene_id": scene["id"], "turn": nxt[1], "speaker": "npc", "persona_id": scene["persona_id"],
+                             "text": reaction["text"], "source": reaction["source"]})
+        elif nxt:
+            op = mind.opening(s.snapshot, nxt[0], dialogue)
+            dialogue.append({"scene_id": nxt[0]["id"], "turn": 0, "speaker": "npc", "persona_id": nxt[0]["persona_id"],
+                             "text": op["text"], "source": op["source"]})
+        s.dialogue = dialogue
         self.db.commit()
         return self.view(s)
 
     def finish(self, sid: str) -> dict:
+        from app.models import Candidate
+        from app.services import hiring
         s = self._mine(sid)
         if s.status == "finished":
             return self.view(s)
-        if len(s.answers) != len(s.snapshot["scenes"]):
+        if _pending(s):
             raise ServiceError(409, "Ainda há cenas sem resposta.")
-        result = analysis.analyze(s.snapshot, s.answers, self.settings.analyst_api_key.get_secret_value(), self.settings.analyst_model)
+        result = analysis.analyze(s.snapshot, s.answers, self._key, self.settings.analyst_model, s.dialogue or [])
         s.wellbeing_alert = result["alert"]
         s.analysis = None if result["alert"] else result
         s.status, s.finished_at = "finished", now()
         s.share_with_tenant = False
+        candidate = self.db.get(Candidate, s.candidate_id) if s.candidate_id else None
+        if candidate and candidate.consent_at and not s.wellbeing_alert:
+            s.share_with_tenant = True  # autorização dada ao aceitar o convite da vaga; dá para retirar
+            self.db.flush()
+            hiring.run_fit_session(self.db, self.settings, candidate)
+            if candidate.fit and s.analysis is not None:
+                s.analysis = {**s.analysis, "fit": candidate.fit}
         self.db.commit()
         return self.view(s)
 
     def share(self, sid: str, share: bool) -> dict:
+        from app.models import Candidate
+        from app.services import hiring
         s = self._mine(sid)
         if share and (s.status != "finished" or s.wellbeing_alert):
             raise ServiceError(409, "Esta experiência não pode ser compartilhada.")
         s.share_with_tenant = share
+        candidate = self.db.get(Candidate, s.candidate_id) if s.candidate_id else None
+        if candidate:
+            candidate.consent_at = now() if share else None
+            hiring.run_fit_session(self.db, self.settings, candidate)
         self.db.commit()
         return self.view(s)

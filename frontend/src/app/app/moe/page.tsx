@@ -22,10 +22,11 @@ export default function MoeParticipant() {
 
   return (
     <div className={s.page}>
-      <header className={s.head}>
-        <p className={s.kicker}>MOE / MYOFFICEEXPERIENCE</p>
-        <h1>Simulações do escritório</h1>
-        <p>Situações fictícias de trabalho com personagens. Não é prova e não tem nota. A leitura é sua; a empresa só vê o que você decidir compartilhar.</p>
+      <header className="page-head">
+        <div>
+          <h1>Simulações do escritório</h1>
+          <p>Situações fictícias de trabalho com personagens que lembram o que você disse.</p>
+        </div>
       </header>
       {error && <p className={s.error} role="alert">{error}</p>}
       <section aria-labelledby="disp">
@@ -36,7 +37,8 @@ export default function MoeParticipant() {
           <ul className={s.cards}>
             {available.map((x) => (
               <li key={x.id} className={s.card}>
-                <div className={s.cardHead}><h3>{x.title}</h3><span className={s.badge}>{x.scenes} cenas</span></div>
+                <div className={s.cardHead}><h3>{x.title}</h3><span className={s.badge}>{x.scenes} cenas</span>{x.job_title && <span className={s.badge}>Vaga · {x.job_title}</span>}</div>
+                {x.stages && x.stages.length > 1 && <p className={s.meta}>{x.stages.join(" → ")}</p>}
                 {x.description && <p>{x.description}</p>}
                 <div className={s.actions}><Link className="btn btn-primary" href={`/moe?cenario=${x.id}`}>Entrar no escritório</Link></div>
               </li>
@@ -52,7 +54,7 @@ export default function MoeParticipant() {
               <li key={x.id} className={s.card}>
                 <div className={s.cardHead}>
                   <h3>{x.title}</h3>
-                  <span className={x.status === "finished" ? s.badgeOn : s.badge}>{x.status === "finished" ? "Concluída" : `Em andamento · ${x.answered}/${x.scenes}`}</span>
+                  <span className={x.status === "finished" ? s.badgeOn : s.badge}>{x.status === "finished" ? "Concluída" : `Em andamento · ${x.answered}/${x.scenes} respostas`}</span>
                   {x.share_with_tenant && <span className={s.badge}>Compartilhada</span>}
                 </div>
                 <div className={s.actions}><Link className="btn" href={`/moe?sessao=${x.id}`}>{x.status === "finished" ? "Ver leitura" : "Continuar"}</Link></div>

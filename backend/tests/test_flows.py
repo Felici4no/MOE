@@ -46,41 +46,34 @@ def guest_with_interview(app):
     return admin, guest, guest.post("/api/v1/interviews").json()["id"]
 
 
-def test_plans_catalog_has_four_scopes_and_enterprise_is_contact_only(app):
+def test_plans_catalog_has_three_company_plans_and_enterprise_is_contact_only(app):
     plans = client(app).get("/api/v1/plans").json()
-    assert [p["id"] for p in plans] == ["individual", "equipe", "empresa", "enterprise"]
-    assert plans[0]["billing"] == "one_time" and plans[1]["billing"] == plans[2]["billing"] == "monthly"
-    assert plans[3]["billing"] == "contact" and plans[3]["price_cents"] is None
-    assert all("Gupy" in " ".join(p["features"]) for p in plans[1:])
+    assert [p["id"] for p in plans] == ["equipe", "empresa", "enterprise"]
+    assert plans[0]["billing"] == plans[1]["billing"] == "monthly"
+    assert plans[2]["billing"] == "contact" and plans[2]["price_cents"] is None
     lead = {"name": "Ana", "email": "ana@empresa.com", "company": "Grande SA", "people": 900}
     assert client(app).post("/api/v1/leads", json=lead).status_code == 201
 
 
-def test_individual_flow_with_dev_purchase(app):
+def test_individual_portal_is_gone(app):
     c = client(app)
-    r = c.post("/api/v1/auth/individual/signup", json={"name": "Ana Souza", "email": "Ana@Ex.com", "password": PW})
-    assert r.status_code == 201 and r.json()["credits"] == 0
-    assert c.post("/api/v1/interviews").status_code == 402
-    assert c.post("/api/v1/billing/checkout").json()["mode"] == "dev"
-    assert c.get("/api/v1/me").json()["credits"] == 1
-    other = client(app)
-    r = other.post("/api/v1/auth/login", json={"email": "ana@ex.com", "password": PW, "portal": "empresa"})
-    assert r.status_code == 409 and "Individual" in r.json()["detail"]
+    assert c.post("/api/v1/auth/individual/signup", json={"name": "Ana", "email": "a@ex.com", "password": PW}).status_code in (404, 405)
+    assert c.post("/api/v1/billing/checkout").status_code in (404, 405)
 
 
 def test_trial_quota_then_subscription(app):
     admin = client(app)
     admin.post("/api/v1/auth/company/signup", json={"name": "Rui", "email": "rui@acme.com", "password": PW, "company": "Acme"})
     billing = admin.get("/api/v1/tenant/billing").json()
-    assert billing["trial"] and billing["limit"] == 2 and billing["used"] == 0
-    for n in range(2):
+    assert billing["trial"] and billing["limit"] == 5 and billing["used"] == 0
+    for n in range(5):
         assert admin.post("/api/v1/tenant/invites", json={"email": f"p{n}@acme.com"}).status_code == 201
-    assert admin.post("/api/v1/tenant/invites", json={"email": "p3@acme.com"}).status_code == 402
+    assert admin.post("/api/v1/tenant/invites", json={"email": "p9@acme.com"}).status_code == 402
     assert admin.post("/api/v1/billing/subscribe", json={"plan": "enterprise"}).status_code == 422
     assert admin.post("/api/v1/billing/subscribe", json={"plan": "equipe"}).json()["mode"] == "dev"
     billing = admin.get("/api/v1/tenant/billing").json()
     assert billing["plan"] == "equipe" and billing["limit"] == 15 and not billing["trial"]
-    assert admin.post("/api/v1/tenant/invites", json={"email": "p3@acme.com"}).status_code == 201
+    assert admin.post("/api/v1/tenant/invites", json={"email": "p9@acme.com"}).status_code == 201
 
 
 def test_three_attempts_with_timestamps_then_profile(app):
@@ -173,7 +166,7 @@ def test_wellbeing_alert_hides_report_and_blocks_sharing(app):
 
 def test_cross_site_write_is_blocked(app):
     c = TestClient(app, headers={"origin": "https://evil.example"})
-    r = c.post("/api/v1/auth/individual/signup", json={"name": "Ana", "email": "a@b.co", "password": PW})
+    r = c.post("/api/v1/auth/company/signup", json={"name": "Ana", "email": "a@b.co", "password": PW, "company": "X"})
     assert r.status_code == 403
 
 
@@ -195,7 +188,7 @@ def test_guardrail_patterns_avoid_common_false_positives():
 def test_invite_email_and_resend_rotates_link(app, monkeypatch):
     from app.services import mailer
     sent = []
-    monkeypatch.setattr(mailer.Mailer, "invite", lambda self, to, name, company, link, expires, tests=(): sent.append((to, link)) or True)
+    monkeypatch.setattr(mailer.Mailer, "invite", lambda self, to, name, company, link, expires, tests=(), **_: sent.append((to, link)) or True)
     admin = client(app)
     admin.post("/api/v1/auth/company/signup", json={"name": "Rui", "email": "rui@acme.com", "password": PW, "company": "Acme"})
     first = admin.post("/api/v1/tenant/invites", json={"email": "bia@acme.com", "name": "Bia"}).json()
@@ -256,13 +249,15 @@ def test_silence_reminder_config_and_end_after_30s(app):
 def test_invite_with_two_tests_creates_two_interviews(app, monkeypatch):
     from app.services import mailer
     got = {}
-    monkeypatch.setattr(mailer.Mailer, "invite", lambda self, *a: got.setdefault("tests", [t.name for t in a[-1]]) and True)
+    monkeypatch.setattr(mailer.Mailer, "invite", lambda self, *a, **_: got.setdefault("tests", [t.name for t in a[-1]]) and True)
     admin = client(app)
     admin.post("/api/v1/auth/company/signup", json={"name": "Rui", "email": "rui@acme.com", "password": PW, "company": "Acme"})
     inv = admin.post("/api/v1/tenant/invites", json={"email": "bia@acme.com", "tests": ["completa", "rapida"]}).json()
     assert inv["tests"] == ["completa", "rapida"] and got["tests"] == ["Mapa de Talentos", "Mapa rápido"]
     assert admin.get("/api/v1/tenant/billing").json()["used"] == 2
-    assert admin.post("/api/v1/tenant/invites", json={"email": "c@acme.com"}).status_code == 402  # teste gratuito: 2
+    for n in range(3):
+        assert admin.post("/api/v1/tenant/invites", json={"email": f"c{n}@acme.com"}).status_code == 201
+    assert admin.post("/api/v1/tenant/invites", json={"email": "c9@acme.com"}).status_code == 402  # teste gratuito: 5
     token = inv["link"].rsplit("/", 1)[1]
     guest = client(app)
     assert [t["name"] for t in guest.get(f"/api/v1/auth/invites/{token}").json()["tests"]] == ["Mapa de Talentos", "Mapa rápido"]
@@ -316,9 +311,11 @@ def test_configured_account_can_restart_only_its_own_interviews(app):
     assert guest.get("/api/v1/me").json()["can_restart_interviews"] is True
     assert admin.post(f"{path}/{original}/restart").status_code == 403
 
+    boss = client(app)
+    boss.post("/api/v1/auth/company/signup", json={"name": "Lu", "email": "lu@beta.com", "password": PW, "company": "Beta"})
+    token = boss.post("/api/v1/tenant/invites", json={"email": "outra@beta.com"}).json()["link"].rsplit("/", 1)[1]
     other = client(app)
-    other.post("/api/v1/auth/individual/signup", json={"name": "Outra pessoa", "email": "outra@acme.com", "password": PW})
-    other.post("/api/v1/billing/checkout")
+    other.post("/api/v1/auth/invites/accept", json={"token": token, "name": "Outra pessoa", "password": PW})
     foreign = other.post(path).json()["id"]
     assert guest.post(f"{path}/{foreign}/restart").status_code == 404
 
@@ -346,59 +343,8 @@ def test_configured_account_can_restart_only_its_own_interviews(app):
     assert admin.get("/api/v1/tenant/billing").json()["used"] == 1
 
 
-def test_individual_checkout_pause_keeps_existing_access(app, monkeypatch):
-    from pydantic import SecretStr
-    import stripe
-
-    c = client(app)
-    assert c.post("/api/v1/auth/individual/signup",
-                  json={"name": "Ana", "email": "compra@acme.com", "password": PW}).status_code == 201
-    assert c.get("/api/v1/me").json()["individual_checkout_available"] is True
-    assert c.post("/api/v1/billing/checkout").json()["mode"] == "dev"
-
-    app.state.settings.interview_payments_enabled = False
-    app.state.settings.stripe_secret_key = SecretStr("sk_test_fixture")
-    monkeypatch.setattr(stripe.Customer, "create", lambda **_: pytest.fail("A compra pausada chamou a Stripe"))
-
-    assert c.get("/api/v1/health").json()["individual_checkout_available"] is False
-    plans = c.get("/api/v1/plans").json()
-    assert plans[0]["available"] is False
-    assert all(plan["available"] for plan in plans[1:])
-    assert c.get("/api/v1/me").json()["individual_checkout_available"] is False
-    assert c.post("/api/v1/billing/checkout").status_code == 503
-    assert c.get("/api/v1/me").json()["credits"] == 1
-    assert c.post("/api/v1/interviews").status_code == 201
-
-
-def test_individual_can_start_each_free_test_while_checkout_is_paused(app):
-    app.state.settings.interview_payments_enabled = False
-    c = client(app)
-    account = c.post("/api/v1/auth/individual/signup",
-                     json={"name": "Ana", "email": "gratuito@acme.com", "password": PW}).json()
-    assert account["free_interview_testing"] and account["credits"] == 0
-    assert {test["id"] for test in account["tests"]} == {"completa", "rapida"}
-
-    first_ids = set()
-    for kind in ("completa", "rapida"):
-        response = c.post("/api/v1/interviews", json={"kind": kind})
-        assert response.status_code == 201 and response.json()["kind"] == kind
-        interview_id = response.json()["id"]
-        first_ids.add(interview_id)
-        assert c.post("/api/v1/interviews", json={"kind": kind}).json()["id"] == interview_id
-        assert c.post(f"/api/v1/interviews/{interview_id}/join").status_code == 200
-        assert c.post(f"/api/v1/interviews/{interview_id}/finish").status_code == 200
-        assert c.post("/api/v1/interviews", json={"kind": kind}).status_code == 402
-
-    assert len(first_ids) == 2
-    assert c.get("/api/v1/me").json()["tests"] == []
-    assert c.post("/api/v1/billing/checkout").status_code == 503
-    plan = c.get("/api/v1/plans").json()[0]
-    assert plan["free_testing"] and not plan["available"]
-
-
-def test_paused_checkout_gives_master_free_tests_without_company_quota(app):
+def test_master_gets_free_tests_without_company_quota(app):
     admin, guest, invited_id = guest_with_interview(app)
-    app.state.settings.interview_payments_enabled = False
     assert guest.post("/api/v1/interviews", json={"kind": "rapida"}).status_code == 402
     app.state.settings.interview_master_user_id = guest.get("/api/v1/me").json()["id"]
     assert guest.get("/api/v1/me").json()["free_interview_testing"]

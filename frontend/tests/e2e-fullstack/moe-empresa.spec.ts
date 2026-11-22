@@ -74,9 +74,9 @@ test("empresa configura, pessoa joga, lê os pontos e compartilha; empresa só v
   await person.goto("/app/moe");
   await expect(person.getByRole("heading", { name: "Entrega sob pressão", level: 3 })).toBeVisible({ timeout: 60_000 });
   await person.getByRole("link", { name: "Entrar no escritório" }).click();
-  await expect(person.getByText("CENÁRIO DA EMPRESA", { exact: false })).toBeVisible({ timeout: 60_000 });
+  await expect(person.getByText("Cenário da empresa", { exact: false })).toBeVisible({ timeout: 60_000 });
   await expect(person.getByText("cética · curiosa · postura cética")).toBeVisible();
-  await person.getByRole("button", { name: "ENTRAR NO ESCRITÓRIO" }).click();
+  await person.getByRole("button", { name: "Entrar no escritório" }).click();
   await waitOffice(person);
   const cast = await person.evaluate(() => (document.querySelector("iframe")!.contentWindow as unknown as { __moeOffice: { characters: string[] } }).__moeOffice.characters.length);
   expect(cast).toBe(3);
@@ -92,13 +92,13 @@ test("empresa configura, pessoa joga, lê os pontos e compartilha; empresa só v
   for (const [i, nome] of ["Maia", "Léo", "Iara"].entries()) {
     await expect(person.getByRole("heading", { name: new RegExp(nome) })).toBeVisible({ timeout: 30_000 });
     await expect(person.getByRole("button", { name: "Responder" })).toBeEnabled({ timeout: 15_000 });
-    await person.getByLabel(/SUA RESPOSTA PARA/).fill(respostas[i]);
+    await person.getByLabel(/Sua resposta para/).fill(respostas[i]);
     await person.getByRole("button", { name: "Responder" }).click();
   }
   await expect(person).toHaveURL(/\/moe\?sessao=/);
-  await person.getByRole("button", { name: "VER MINHA DEVOLUTIVA" }).click();
+  await person.getByRole("button", { name: "Ver minha leitura" }).click();
   await expect(person.getByRole("heading", { name: "Pontos que a empresa quis explorar" })).toBeVisible({ timeout: 30_000 });
-  await expect(person.getByText("PRIORIZAÇÃO · FOCO 4/5")).toBeVisible();
+  await expect(person.getByText("Priorização · foco 4/5")).toBeVisible();
   await expect(person.locator("blockquote").first()).toHaveText(respostas[0]);
 
   // Antes do consentimento a empresa não vê nada.

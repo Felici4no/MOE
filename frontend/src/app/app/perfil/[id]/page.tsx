@@ -111,17 +111,17 @@ export default function Profile({ params }: { params: Promise<{ id: string }> })
         {me.tenant && interview && (
           <div className={s.share}>
             <div>
-              <h2>Compartilhar com {me.tenant.name}</h2>
-              <p>{interview.share_with_tenant
-                ? "A empresa vê os nomes dos seus talentos principais. Suas falas e a transcrição continuam só com você."
-                : "Hoje só você vê este Mapa. Se compartilhar, a empresa vê apenas os nomes dos seus talentos principais."}</p>
+              <h2>{interview.job_title ? `Análise para ${interview.job_title}` : `Compartilhar com ${me.tenant.name}`}</h2>
+              <p>{interview.job_title
+                ? (interview.share_with_tenant ? `${me.tenant.name} vê sua análise de fit, com alguns trechos do que você disse. A transcrição completa fica só com você.` : `${me.tenant.name} não vê sua análise.`)
+                : (interview.share_with_tenant ? "A empresa vê os nomes dos seus talentos principais." : "Só você vê este Mapa.")}</p>
             </div>
             <button className={`btn ${interview.share_with_tenant ? "" : "btn-primary"}`} onClick={() => share(!interview.share_with_tenant)} disabled={saving} aria-pressed={interview.share_with_tenant}>
-              {interview.share_with_tenant ? "Parar de compartilhar" : "Compartilhar talentos"}
+              {interview.share_with_tenant ? (interview.job_title ? "Retirar autorização" : "Parar de compartilhar") : (interview.job_title ? "Autorizar" : "Compartilhar talentos")}
             </button>
           </div>
         )}
-        <p className={s.disclaimer}>{result.notice} Não use para decidir contratação, demissão ou promoção.</p>
+        <p className={s.disclaimer}>{result.notice}</p>
         <Link href="/app" className="btn">Voltar ao início</Link>
       </footer>
     </article>

@@ -10,6 +10,7 @@ dependencies = [
   "fastapi==0.165.0", "uvicorn[standard]==0.54.0", "pydantic==2.14.4", "pydantic-settings==2.16.3",
   "email-validator==2.4.0", "SQLAlchemy==2.1.9", "psycopg[binary]==3.3.9", "argon2-cffi==25.1.0",
   "PyJWT==2.15.1", "stripe==17.1.0", "httpx==0.28.1", "agora-agents==2.15.0",
+  "openpyxl==3.1.5", "pypdf==5.1.0",
 ]
 
 [project.optional-dependencies]

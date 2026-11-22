@@ -44,18 +44,21 @@ class Mailer:
             log.warning("Falha ao enviar e-mail (%s)", type(exc).__name__)
             return False
 
-    def invite(self, to: str, name: str, company: str, link: str, expires: str, tests=()) -> bool:
+    def invite(self, to: str, name: str, company: str, link: str, expires: str, tests=(), job: str | None = None) -> bool:
         hello = f"Oi, {name}!" if name else "Oi!"
-        lines = "\n".join(f"- {t.name} ({t.minutes}): {t.description}" for t in tests)
-        items = "".join(f"<li><b>{escape(t.name)}</b> ({escape(t.minutes)}): {escape(t.description)}</li>" for t in tests)
-        text = (f"{hello}\n\n{company} convidou você para conversar com a Lia, a entrevistadora do Mapa de Talentos.\n\n"
-                f"Você vai fazer:\n{lines}\n\nAceite o convite: {link}\n\n"
-                f"Use fone e microfone num lugar tranquilo. Se a conexão cair, você tem até 3 tentativas por teste.\n"
-                f"O convite vale até {expires}. O resultado é seu: você decide se a empresa vê os seus talentos.\n")
-        html = (f"<p>{escape(hello)}</p><p><b>{escape(company)}</b> convidou você para conversar com a Lia, "
-                f"a entrevistadora do Mapa de Talentos.</p><p>Você vai fazer:</p><ul>{items}</ul>"
-                f"<p>Use fone e microfone num lugar tranquilo. Se a conexão cair, você tem até 3 tentativas por teste.</p>"
-                f'<p><a href="{escape(link)}" style="display:inline-block;padding:12px 18px;background:#14204a;'
-                f'color:#fff;border-radius:8px;text-decoration:none">Aceitar convite</a></p>'
-                f"<p>O convite vale até {escape(expires)}. O resultado é seu: você decide se a empresa vê os seus talentos.</p>")
-        return self.send(to, f"{company} convidou você para o Mapa de Talentos", text, html)
+        minutes = ", ".join(t.minutes for t in tests) or "cerca de 10 minutos"
+        about = f"a vaga {job}" if job else "uma conversa de pontos fortes"
+        how = (f"É uma entrevista por voz com a Lia ({minutes}), sem questionário: você conta histórias reais de como trabalha."
+               if tests else "É uma simulação no escritório: você conversa com personagens do time, da gerência e da diretoria.")
+        text = (f"{hello}\n\n{company} convidou você para {about} no Resona.\n\n"
+                f"{how}\n\nAceite o convite: {link}\n\n"
+                f"Use fone e microfone num lugar tranquilo. Se a conexão cair, você tem até 3 tentativas.\n"
+                f"O convite vale até {expires}.\n")
+        html = (f"<p>{escape(hello)}</p><p><b>{escape(company)}</b> convidou você para {escape(about)} no Resona.</p>"
+                f"<p>{escape(how)}</p>"
+                f'<p><a href="{escape(link)}" style="display:inline-block;padding:12px 22px;background:#2e5bff;'
+                f'color:#fcfcfd;border-radius:9999px;text-decoration:none;font-weight:500">Aceitar convite</a></p>'
+                f"<p>Use fone e microfone num lugar tranquilo. Se a conexão cair, você tem até 3 tentativas. "
+                f"O convite vale até {escape(expires)}.</p>")
+        subject = f"{company}: convite para {job}" if job else f"{company} convidou você para o Resona"
+        return self.send(to, subject, text, html)

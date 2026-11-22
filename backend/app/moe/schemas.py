@@ -5,7 +5,7 @@ from pydantic import Field, field_validator
 
 from app.schemas import Input, Schema
 
-from .domain import MAX_CAST, MAX_SCENES, MAX_SIGNALS, MAX_TRAITS
+from .domain import MAX_CAST, MAX_CONCERNS, MAX_SCENES, MAX_SIGNALS, MAX_TRAITS
 
 Stance = Literal["colaborativa", "direta", "cetica", "apressada", "acolhedora"]
 Tone = Literal["colaborativo", "neutro", "tenso"]
@@ -45,6 +45,18 @@ class PointOut(Schema):
     in_use: bool = False
 
 
+class Concern(Schema):
+    topic: str = Field(min_length=2, max_length=60)
+    keywords: list[str] = Field(default_factory=list, max_length=12)
+    probe: str = Field(min_length=5, max_length=240)
+    ack: str = Field(default="", max_length=200)
+
+    @field_validator("keywords")
+    @classmethod
+    def clean(cls, v: list[str]) -> list[str]:
+        return [k for k in _clean_list(v) if len(k) <= 40]
+
+
 class PersonaIn(Input):
     name: str = Field(min_length=2, max_length=40)
     role: str = Field(min_length=2, max_length=60)
@@ -54,6 +66,9 @@ class PersonaIn(Input):
     voice_tone: VoiceTone = "serena"
     voice_id: str = Field(default="", max_length=80)
     look: int = Field(default=1, ge=0, le=5)
+    goal: str = Field(default="", max_length=300)
+    concerns: list[Concern] = Field(default_factory=list, max_length=MAX_CONCERNS)
+    memory: bool = True
 
     @field_validator("traits")
     @classmethod
@@ -75,6 +90,9 @@ class PersonaOut(Schema):
     voice_id: str
     voice_verified: bool = False
     look: int
+    goal: str = ""
+    concerns: list[Concern] = []
+    memory: bool = True
     in_use: bool = False
 
 
@@ -83,6 +101,7 @@ class SceneIn(Input):
     persona_id: str = Field(min_length=1, max_length=32)
     line: str = Field(min_length=10, max_length=400)
     point_ids: list[str] = Field(default_factory=list, max_length=6)
+    stage: str = Field(default="", max_length=40)
 
 
 class ScenarioIn(Input):
@@ -92,6 +111,7 @@ class ScenarioIn(Input):
     tone: Tone = "neutro"
     point_ids: list[str] = Field(default_factory=list, max_length=12)
     scenes: list[SceneIn] = Field(min_length=1, max_length=MAX_SCENES)
+    follow_ups: bool = False
 
 
 class SceneOut(Schema):
@@ -99,6 +119,7 @@ class SceneOut(Schema):
     persona_id: str
     line: str
     point_ids: list[str]
+    stage: str = ""
 
 
 class ScenarioOut(Schema):
@@ -114,10 +135,13 @@ class ScenarioOut(Schema):
     published_at: datetime | None
     dirty: bool = False
     cast_size: int = 0
+    follow_ups: bool = False
+    job_title: str | None = None
 
 
 class AnswerIn(Input):
     scene_id: str = Field(min_length=1, max_length=32)
+    turn: int | None = Field(default=None, ge=0, le=1)
     text: str = Field(min_length=1)
 
     @field_validator("text")

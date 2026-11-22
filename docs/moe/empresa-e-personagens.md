@@ -2,9 +2,24 @@
 
 A empresa define **o que quer explorar** (pontos), **quem conversa** (personagens com personalidade e voz) e **a situação** (cenas, pressão, clima). A pessoa joga no escritório Pixel Agents e recebe uma leitura **dela**. A empresa só vê se a pessoa compartilhar, e para de ver se ela desfizer.
 
+## Personagens com mente e memória
+
+Cada personagem tem **objetivo**, até 5 **preocupações** (tema, palavras-chave, pergunta de aprofundamento e reação) e **memória** (`backend/app/moe/mind.py`).
+
+- **Abertura com memória:** ao abrir a cena, o personagem cita literalmente o que a pessoa disse antes, seguindo a hierarquia das etapas (a gerência lembra o que foi dito ao time; a diretoria, o que foi dito à gerência). Colegas da mesma etapa dizem "Você falou para o Rafa que…".
+- **Reação e aprofundamento:** com `follow_ups` ligado no cenário, cada cena tem duas trocas. Depois da primeira resposta, o personagem reconhece o tema que foi coberto e pergunta pela preocupação que faltou. Resposta curta → pede detalhe. Com `ANALYST_LLM_API_KEY`, a reação é escrita pelo modelo no papel (máx. 2 frases, termina em pergunta, sem temas sensíveis); senão, vale a regra local.
+- **Etapas:** cada cena pode ter uma `stage` (ex.: Time de desenvolvimento → Gerência → Diretoria), mostrada como trilha na tela.
+- **Reflexo no perfil:** a leitura lista cada fala do personagem, a resposta literal e o que ela mostra (pontos tocados; em vagas, itens de cultura, soft skills, hard skills e domínios do perfil).
+
+## Simulação como avaliação de vaga
+
+Uma vaga pode usar `assessment: "simulacao"` com um `scenario_id`. O convite da vaga não gera entrevista com a Lia: o candidato joga o cenário (uma sessão por vaga). Ao concluir, com a autorização dada no aceite do convite, o fit da vaga é calculado a partir das respostas (cultura, perfil, soft skills e **hard skills**) e entra no ranking da vaga com as conversas. Retirar a autorização tira a análise da empresa.
+
+Cliente teste: `cd backend && .venv/bin/python -m app.seed_cliente_teste` cria "Fluxo · cliente teste" com uma vaga de Product Manager e a simulação "Nova prioridade no meio da sprint" (time de devs → gerência → diretoria). Contas e senha no topo de `backend/app/seed_cliente_teste.py`.
+
 ## Regras de produto (não negociáveis)
 
-- **Sem nota.** O peso (1–5) de um ponto define foco e ordem de leitura, nunca pontuação.
+- **Sem nota nos pontos.** O peso (1–5) de um ponto define foco e ordem de leitura, nunca pontuação. A nota de fit existe só em vagas, sempre com evidência literal, e apoia a decisão sem decidir sozinha.
 - **Evidência literal.** Na leitura só entram trechos que estão literalmente nas respostas da pessoa. Falas de personagens nunca contam.
 - **Consentimento.** `share_with_tenant` começa falso, é decidido pela pessoa e pode ser revertido. O alerta de bem-estar oculta a leitura e bloqueia o compartilhamento.
 - **Sem temas sensíveis.** Pontos, personagens e falas que mencionem religião, política, orientação sexual, gravidez, família/filhos, idade, raça/etnia, deficiência, saúde, origem ou sotaque são recusados (`app/moe/domain.py: SENSITIVE`, mesmas regras da Lia).

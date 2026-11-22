@@ -12,13 +12,12 @@ FastAPI + Pydantic (camadas de models, repositories, services, routers) com Post
 
 ## Users
 
-- **Pessoa avaliada (B2C):** compra individualmente uma entrevista para descobrir seus pontos fortes. Faz a conversa sozinha, pelo navegador, em português.
-- **Organização locatária (B2B):** uma empresa (RH, liderança, consultoria) cria seu espaço, convida colaboradores ou candidatos e acompanha quem concluiu e o resultado de cada um.
-- **Convidado de uma organização:** entra por convite de um locatário e faz a mesma entrevista, sem pagar.
+- **Empresa (RH, liderança):** sobe a cultura, cria vagas com soft skills e perfil comportamental, importa candidatos por planilha, envia convites em lote e compara o ranking de fit.
+- **Candidato:** entra pelo convite da vaga, autoriza a empresa a ver a análise e conversa com a Lia pelo navegador, em português.
 
 ## Product Purpose
 
-Pontos Fortes é uma entrevista por voz conduzida pela Lia em tempo real que identifica os talentos naturais de uma pessoa por meio de conversa, não de questionário. O resultado é um perfil dos temas mais fortes, com evidências tiradas das próprias falas. É o primeiro de uma linha de testes por entrevista falada que será vendida.
+Resona é contratação por fit cultural: uma entrevista por voz com a Lia, enviada em lote aos candidatos de uma vaga, gera o ranking de fit cultural, perfil comportamental e soft skills, com a frase de cada pessoa que sustenta cada nota.
 
 Sucesso no MVP: uma pessoa consegue se cadastrar (individual ou via empresa), conversar com a Lia e receber o perfil; uma empresa consegue convidar pessoas e ver os resultados.
 
@@ -29,21 +28,20 @@ A avaliação acontece numa conversa falada com a Lia, e cada tema do resultado 
 ## Operating Context
 
 - Entrevista de 20 a 30 minutos, no desktop ou celular, com microfone (câmera opcional).
-- B2B: conta de organização com membros administradores, convites por e-mail/link, créditos de entrevista.
-- B2C: compra pelo Stripe (modo teste no MVP), que libera um crédito de entrevista.
+- Conta de empresa com administradores, convites em lote por e-mail/link, cota mensal de entrevistas (Stripe em modo teste).
 - Materiais de pesquisa sobre a abordagem de talentos da Gallup ficam em `materiais/` apenas como insumo interno.
 
 ## Capabilities and Constraints
 
-- Dois caminhos de acesso: **Empresa** (locatário) e **Individual** (aquisição).
+- Só empresas. O portal Individual (B2C) foi removido.
 - Taxonomia **própria** em português: domínios e temas autorais. Nomes, definições e textos do CliftonStrengths/Gallup não aparecem no produto, por serem marca registrada e conteúdo licenciado.
-- O resultado é autoconhecimento e conversa de desenvolvimento; o produto não afirma validade psicométrica nem serve como critério único de contratação.
+- O ranking apoia a seleção; o produto não afirma validade psicométrica nem serve como critério único de contratação.
 - Credenciais da Agora e do Stripe ficam só no servidor.
 - Indefinido: preço real, provedor de e-mail transacional, política de retenção das transcrições.
 
 ## Brand Commitments
 
-Nome: **Pontos Fortes**. Português do Brasil. O usuário pediu um sistema "mais humano e inovador".
+Nome: **Resona**. Português do Brasil. Identidade: Host Grotesk, fundo branco, azul #2e5bff só para ação e destaque de fit, cantos suaves, botões em pílula. Interface limpa: explicações em dicas ao passar o mouse.
 
 ## Evidence on Hand
 

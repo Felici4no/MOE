@@ -1,4 +1,4 @@
-"""Gestão do locatário: convites e acompanhamento das pessoas."""
+"""Gestão da empresa: cota, convites e acompanhamento das pessoas."""
 from datetime import UTC, datetime, timedelta
 
 from sqlalchemy.orm import Session
@@ -61,7 +61,7 @@ class TenantAdmin:
                 raise ServiceError(402, f"O teste gratuito permite {TRIAL_INVITES} convites. Assine um plano para convidar mais pessoas.")
             raise ServiceError(402, "Você usou as entrevistas do plano neste mês. Troque de plano ou aguarde a renovação.")
         if Users(self.db).by_email(data.email):
-            raise ServiceError(409, "Este e-mail já tem conta no Pontos Fortes.")
+            raise ServiceError(409, "Este e-mail já tem conta no Resona.")
         for existing in self.tenants.invites(self.tenant_id):
             if existing.email == data.email and existing.status == InviteStatus.sent:
                 raise ServiceError(409, "Já existe um convite ativo para este e-mail.")
@@ -83,7 +83,7 @@ class TenantAdmin:
         invite.status = InviteStatus.sent
         return self._issue(invite)
 
-    def _issue(self, invite: Invite) -> InviteOut:
+    def _issue(self, invite: Invite, job: str | None = None) -> InviteOut:
         token = new_secret()
         invite.token_hash = digest(token)
         invite.expires_at = datetime.now(UTC) + timedelta(days=INVITE_DAYS)
@@ -92,7 +92,7 @@ class TenantAdmin:
         link = f"{self.settings.public_url}/convite/{token}"
         tests = [TESTS_BY_ID[t] for t in invite.tests or ["completa"] if t in TESTS_BY_ID]
         emailed = Mailer(self.settings).invite(invite.email, invite.name, self.membership.tenant.name, link,
-                                               invite.expires_at.strftime("%d/%m/%Y"), tests)
+                                               invite.expires_at.strftime("%d/%m/%Y"), tests, job=job)
         out = InviteOut.model_validate(invite)
         # O link só é mostrado nesta resposta; o banco guarda apenas o hash.
         out.link, out.emailed = link, emailed
@@ -205,8 +205,10 @@ def preview_invite(db: Session, token: str) -> InvitePreview:
     if not invite or invite.status != InviteStatus.sent or \
             invite.expires_at.replace(tzinfo=invite.expires_at.tzinfo or UTC) < datetime.now(UTC):
         raise ServiceError(410, "Este convite não está mais disponível. Peça um novo à sua empresa.")
-    tenant = invite.tenant_id
-    from app.models import Tenant
+    from app.models import Job, Tenant
     tests = [TestInfo(id=t.id, name=t.name, minutes=t.minutes, description=t.description)
              for t in (TESTS_BY_ID[k] for k in invite.tests or ["completa"] if k in TESTS_BY_ID)]
-    return InvitePreview(company=db.get(Tenant, tenant).name, email=invite.email, name=invite.name, tests=tests)
+    job = db.get(Job, invite.job_id) if invite.job_id else None
+    return InvitePreview(company=db.get(Tenant, invite.tenant_id).name, email=invite.email, name=invite.name, tests=tests,
+                         job=job.title if job else None, has_account=Users(db).by_email(invite.email) is not None,
+                         assessment=job.assessment if job else "entrevista")

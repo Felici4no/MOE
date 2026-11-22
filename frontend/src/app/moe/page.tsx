@@ -5,7 +5,7 @@ import { MoeExperience } from "@/components/moe/MoeExperience";
 // Rota canônica do MOE / MyOfficeExperience. /office redireciona para cá.
 // Sem parâmetros: demonstração S01. ?cenario=<id> ou ?sessao=<id>: cenário publicado pela empresa.
 export const metadata: Metadata = {
-  title: { absolute: "MOE — My Office Experience" },
+  title: "Simulação no escritório",
   description: "Entre no escritório. Converse. Decida. Reflita. Uma simulação fictícia em pixel art.",
   robots: { index: false },
 };

@@ -34,6 +34,11 @@ class MoePersona(Base):
     voice_tone: Mapped[str] = mapped_column(String(20), default="serena")
     voice_id: Mapped[str] = mapped_column(String(80), default="")   # id real do fornecedor de TTS, ou vazio
     look: Mapped[int] = mapped_column(Integer, default=1)            # perfil de personagem do Pixel Agents
+    # Mente do personagem: o que ele quer da conversa e o que o preocupa.
+    goal: Mapped[str] = mapped_column(Text, default="")
+    # [{topic, keywords: [...], probe: pergunta se o tema não apareceu, ack: reação se apareceu}]
+    concerns: Mapped[list] = mapped_column(JSON, default=list)
+    memory: Mapped[bool] = mapped_column(Boolean, default=True)      # lembra o que a pessoa disse a outros personagens
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now, onupdate=now)
 
@@ -48,7 +53,8 @@ class MoeScenario(Base):
     pressure: Mapped[int] = mapped_column(Integer, default=3)        # 1..5
     tone: Mapped[str] = mapped_column(String(20), default="neutro")
     point_ids: Mapped[list] = mapped_column(JSON, default=list)
-    scenes: Mapped[list] = mapped_column(JSON, default=list)          # [{id, persona_id, line, point_ids}]
+    scenes: Mapped[list] = mapped_column(JSON, default=list)          # [{id, persona_id, line, point_ids, stage}]
+    follow_ups: Mapped[bool] = mapped_column(Boolean, default=False)  # o personagem reage e aprofunda (2 turnos por cena)
     status: Mapped[str] = mapped_column(String(20), default="draft")  # draft | published
     version: Mapped[int] = mapped_column(Integer, default=0)
     published: Mapped[dict | None] = mapped_column(JSON, nullable=True)
@@ -64,9 +70,12 @@ class MoeSession(Base):
     tenant_id: Mapped[str] = mapped_column(ForeignKey("tenants.id", ondelete="CASCADE"), index=True)
     scenario_id: Mapped[str] = mapped_column(ForeignKey("moe_scenarios.id", ondelete="CASCADE"), index=True)
     user_id: Mapped[str] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
+    candidate_id: Mapped[str | None] = mapped_column(String(32), nullable=True)  # candidato da vaga ligada ao cenário
     version: Mapped[int] = mapped_column(Integer, default=1)
     snapshot: Mapped[dict] = mapped_column(JSON)
-    answers: Mapped[list] = mapped_column(JSON, default=list)        # [{scene_id, quote, at}]
+    answers: Mapped[list] = mapped_column(JSON, default=list)        # [{scene_id, turn, quote, at}]
+    # Conversa completa na ordem: [{scene_id, turn, speaker: npc|person, persona_id, text, source}]
+    dialogue: Mapped[list] = mapped_column(JSON, default=list)
     status: Mapped[str] = mapped_column(String(20), default="playing")  # playing | finished
     analysis: Mapped[dict | None] = mapped_column(JSON, nullable=True)
     wellbeing_alert: Mapped[bool] = mapped_column(Boolean, default=False)

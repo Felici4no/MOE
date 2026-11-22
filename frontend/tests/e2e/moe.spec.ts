@@ -17,7 +17,7 @@ function watchProblems(page: Page) {
 
 async function entrar(page: Page) {
   await page.goto("/moe");
-  await page.getByRole("button", { name: "ENTRAR NO ESCRITÓRIO" }).click();
+  await page.getByRole("button", { name: "Entrar no escritório" }).click();
   await page.waitForFunction(
     () => (document.querySelector("iframe")?.contentWindow as unknown as { __moeOffice?: { ready: boolean } })?.__moeOffice?.ready,
     null,
@@ -28,18 +28,18 @@ async function entrar(page: Page) {
 async function responderCena(page: Page, npc: RegExp, texto: string) {
   await expect(page.getByRole("heading", { name: npc })).toBeVisible();
   await expect(page.getByRole("button", { name: "Responder" })).toBeEnabled({ timeout: 10_000 });
-  await page.getByLabel(/SUA RESPOSTA PARA/).fill(texto);
+  await page.getByLabel(/Sua resposta para/).fill(texto);
   await page.getByRole("button", { name: "Responder" }).click();
 }
 
-test("entrada com marca MOE, aviso fixo, modo sem voz e crédito", async ({ page }) => {
+test("entrada com a marca Resona, aviso fixo, modo texto e crédito", async ({ page }) => {
   await page.goto("/moe");
-  await expect(page.getByText("MY OFFICE EXPERIENCE").first()).toBeVisible();
-  await expect(page.getByText("MOE / EXPERIENCE 001").first()).toBeVisible();
-  await expect(page.getByRole("heading", { level: 1 })).toHaveText("VOCÊ CHEGOU AO ESCRITÓRIO.");
-  await expect(page.getByText("DEMO SEM VOZ").first()).toBeVisible();
+  await expect(page.getByText("Resona").first()).toBeVisible();
+  await expect(page.getByText("Simulação no escritório").first()).toBeVisible();
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText("Você chegou ao escritório");
+  await expect(page.getByText("Por texto").first()).toBeVisible();
   await expect(page.getByText(/Esta é uma simulação fictícia/)).toBeVisible();
-  await expect(page.getByText("Visual engine: Pixel Agents — MIT © 2026 Pablo De Lucca")).toBeVisible();
+  await expect(page.getByText("Escritório em pixel art: Pixel Agents, MIT © 2026 Pablo De Lucca")).toBeVisible();
 });
 
 test("/office redireciona para /moe", async ({ page }) => {
@@ -73,7 +73,7 @@ test("escritório Pixel Agents real: layout, móveis, três NPCs e sprites desen
 test("S01 completo: Maia → Léo → Nara → devolutiva com citações literais", async ({ page }) => {
   const problems = watchProblems(page);
   await entrar(page);
-  await expect(page.getByText("CENA 1 / 3")).toBeVisible();
+  await expect(page.getByText("1 de 3 respostas")).toBeVisible();
 
   // Resposta vazia não avança.
   await expect(page.getByRole("button", { name: "Responder" })).toBeEnabled({ timeout: 10_000 });
@@ -81,22 +81,22 @@ test("S01 completo: Maia → Léo → Nara → devolutiva com citações literai
   await expect(page.getByRole("alert").filter({ hasText: "Escreva sua resposta" })).toBeVisible();
 
   await responderCena(page, /Maia/, RESPOSTAS[0]);
-  await expect(page.getByText("CENA 2 / 3")).toBeVisible();
+  await expect(page.getByText("2 de 3 respostas")).toBeVisible();
   await responderCena(page, /Léo/, RESPOSTAS[1]);
   await responderCena(page, /Nara/, RESPOSTAS[2]);
-  await expect(page.getByRole("status").filter({ hasText: "SIMULAÇÃO CONCLUÍDA" })).toBeVisible();
+  await expect(page.getByRole("status").filter({ hasText: "Conversas concluídas" })).toBeVisible();
 
-  await page.getByRole("button", { name: "VER MINHA DEVOLUTIVA" }).click();
+  await page.getByRole("button", { name: "Ver minha leitura" }).click();
   await expect(page.getByRole("heading", { name: "Sua experiência no escritório" })).toBeVisible();
   await expect(page.locator("blockquote")).toHaveText(RESPOSTAS);
-  await expect(page.getByText("SIMULAÇÃO FICTÍCIA").first()).toBeVisible();
-  await expect(page.getByText(/não viram evidências de talento/)).toBeVisible();
+  await expect(page.getByText("Simulação fictícia").first()).toBeVisible();
+  await expect(page.getByText(/não recebem nota/)).toBeVisible();
   // Falas dos NPCs aparecem como perguntas, nunca como "você respondeu".
   await expect(page.locator("blockquote").filter({ hasText: "Temos uma entrega hoje" })).toHaveCount(0);
 
   // Repetir reinicia do zero.
   await page.getByRole("button", { name: "Repetir" }).click();
-  await expect(page.getByText("CENA 1 / 3")).toBeVisible();
+  await expect(page.getByText("1 de 3 respostas")).toBeVisible();
   await expect(page.getByRole("heading", { name: /Maia/ })).toBeVisible({ timeout: 30_000 });
   expect(problems).toEqual([]);
 });
@@ -104,36 +104,36 @@ test("S01 completo: Maia → Léo → Nara → devolutiva com citações literai
 test("Recomeçar no meio volta à primeira cena; Silenciar alterna o som", async ({ page }) => {
   await entrar(page);
   await responderCena(page, /Maia/, RESPOSTAS[0]);
-  await expect(page.getByText("CENA 2 / 3")).toBeVisible();
+  await expect(page.getByText("2 de 3 respostas")).toBeVisible();
   const mute = page.getByRole("button", { name: "Silenciar" });
   await mute.click();
   await expect(page.getByRole("button", { name: "Som desligado" })).toHaveAttribute("aria-pressed", "true");
   await page.getByRole("button", { name: "Recomeçar" }).click();
-  await expect(page.getByText("CENA 1 / 3")).toBeVisible();
+  await expect(page.getByText("1 de 3 respostas")).toBeVisible();
   await expect(page.getByRole("heading", { name: /Maia/ })).toBeVisible({ timeout: 30_000 });
 });
 
 test("teclado: entrar e responder com Ctrl+Enter", async ({ page }, info) => {
   test.skip(info.project.name === "mobile", "teclado físico só no desktop");
   await page.goto("/moe");
-  await page.getByRole("button", { name: "ENTRAR NO ESCRITÓRIO" }).focus();
+  await page.getByRole("button", { name: "Entrar no escritório" }).focus();
   await page.keyboard.press("Enter");
   await expect(page.getByRole("button", { name: "Responder" })).toBeEnabled({ timeout: 30_000 });
-  await page.getByLabel(/SUA RESPOSTA PARA/).focus();
+  await page.getByLabel(/Sua resposta para/).focus();
   await page.keyboard.type("Separo o urgente do importante.");
   await page.keyboard.press("Control+Enter");
-  await expect(page.getByText("CENA 2 / 3")).toBeVisible();
+  await expect(page.getByText("2 de 3 respostas")).toBeVisible();
 });
 
 test("fallback: sem o escritório 2D, a simulação continua por texto", async ({ page }) => {
   test.setTimeout(90_000);
   await page.route("**/office-engine/**", (r) => r.abort());
   await page.goto("/moe");
-  await page.getByRole("button", { name: "ENTRAR NO ESCRITÓRIO" }).click();
+  await page.getByRole("button", { name: "Entrar no escritório" }).click();
   await expect(page.getByRole("alert").filter({ hasText: "Não foi possível carregar o escritório 2D" })).toBeVisible({ timeout: 30_000 });
   await page.getByRole("button", { name: "Continuar só com texto" }).click();
   for (const [i, npc] of [/Maia/, /Léo/, /Nara/].entries()) await responderCena(page, npc, RESPOSTAS[i]);
-  await page.getByRole("button", { name: "VER MINHA DEVOLUTIVA" }).click();
+  await page.getByRole("button", { name: "Ver minha leitura" }).click();
   await expect(page.locator("blockquote")).toHaveCount(3);
 });
 
@@ -141,7 +141,7 @@ test("sem rolagem horizontal nas três telas", async ({ page }) => {
   await page.goto("/moe");
   const ovf = () => page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
   expect(await ovf()).toBeLessThanOrEqual(0);
-  await page.getByRole("button", { name: "ENTRAR NO ESCRITÓRIO" }).click();
+  await page.getByRole("button", { name: "Entrar no escritório" }).click();
   await expect(page.getByRole("heading", { name: /Maia/ })).toBeVisible({ timeout: 30_000 });
   expect(await ovf()).toBeLessThanOrEqual(0);
 });

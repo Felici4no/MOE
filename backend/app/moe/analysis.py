@@ -25,10 +25,12 @@ def _ordered(points: dict) -> list[dict]:
 
 def mapping(snapshot: dict, answers: list[dict]) -> list[dict]:
     """Sem modelo de linguagem: agrupa as respostas pelas cenas que exploram cada ponto."""
-    by_scene = {a["scene_id"]: a["quote"] for a in answers}
+    by_scene: dict[str, list[str]] = {}
+    for a in answers:
+        by_scene.setdefault(a["scene_id"], []).append(a["quote"])
     out = []
     for p in _ordered(snapshot["points"]):
-        quotes = [by_scene[s["id"]] for s in snapshot["scenes"] if p["id"] in s["point_ids"] and s["id"] in by_scene]
+        quotes = [q for s in snapshot["scenes"] if p["id"] in s["point_ids"] for q in by_scene.get(s["id"], [])]
         out.append({"point_id": p["id"], "name": p["name"], "weight": p["weight"], "signals": [], "quotes": quotes,
                     "note": "Respostas às cenas que exploram este ponto. Sem interpretação automática." if quotes
                     else "Nenhuma cena respondida explorou este ponto."})
@@ -70,11 +72,27 @@ def llm(snapshot: dict, answers: list[dict], api_key: str, model: str) -> list[d
         return None
 
 
-def analyze(snapshot: dict, answers: list[dict], api_key: str = "", model: str = "") -> dict:
+def conversations(snapshot: dict, answers: list[dict], dialogue: list[dict], points: list[dict]) -> list[dict]:
+    """Cada troca com um personagem: o que ele disse, o que a pessoa respondeu e os pontos que a resposta tocou."""
+    lines = {(d["scene_id"], d["turn"]): d for d in dialogue if d["speaker"] == "npc"}
+    scenes = {s["id"]: s for s in snapshot["scenes"]}
+    out = []
+    for a in answers:
+        scene = scenes.get(a["scene_id"], {})
+        persona = snapshot["personas"].get(scene.get("persona_id", ""), {})
+        npc = lines.get((a["scene_id"], a.get("turn", 0)))
+        touched = [p["name"] for p in points if any(in_utterance(q, a["quote"]) for q in p["quotes"])]
+        out.append({"persona": persona.get("name", ""), "role": persona.get("role", ""), "stage": scene.get("stage", ""),
+                    "npc_line": npc["text"] if npc else scene.get("line", ""), "memory": bool(npc and npc.get("source") == "memoria"),
+                    "follow_up": a.get("turn", 0) > 0, "quote": a["quote"], "points": touched})
+    return out
+
+
+def analyze(snapshot: dict, answers: list[dict], api_key: str = "", model: str = "", dialogue: list[dict] | None = None) -> dict:
     texts = [a["quote"] for a in answers]
     if wellbeing_alert(texts):
-        return {"alert": True, "method": "none", "points": [], "notice": NOTICE}
+        return {"alert": True, "method": "none", "points": [], "notice": NOTICE, "conversations": []}
     proposal = llm(snapshot, answers, api_key, model) if api_key else None
-    if proposal is not None:
-        return {"alert": False, "method": "llm", "points": validate(snapshot, answers, proposal), "notice": NOTICE}
-    return {"alert": False, "method": "mapeamento", "points": mapping(snapshot, answers), "notice": NOTICE}
+    method, points = ("llm", validate(snapshot, answers, proposal)) if proposal is not None else ("mapeamento", mapping(snapshot, answers))
+    return {"alert": False, "method": method, "points": points, "notice": NOTICE,
+            "conversations": conversations(snapshot, answers, dialogue or [], points)}

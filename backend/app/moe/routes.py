@@ -126,7 +126,7 @@ def session(sid: str, user: UserDep, db: DbDep, cfg: SettingsDep):
 
 @router.post("/play/sessions/{sid}/answers")
 def answer(sid: str, data: AnswerIn, user: UserDep, db: DbDep, cfg: SettingsDep):
-    return MoePlayer(db, cfg, user).answer(sid, data.scene_id, data.text)
+    return MoePlayer(db, cfg, user).answer(sid, data.scene_id, data.text, data.turn)
 
 
 @router.post("/play/sessions/{sid}/finish")

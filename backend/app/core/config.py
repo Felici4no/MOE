@@ -36,11 +36,10 @@ class Settings(BaseSettings):
     tts_language_boost: str = Field("Portuguese", alias="TTS_LANGUAGE_BOOST")
     tts_speed: float = Field(1.0, alias="TTS_SPEED")
 
-    # Prompt B (analista de texto). Vazio: relatório pelas evidências da Lia ou pelos sinais do catálogo.
+    # Prompt B (analista de texto) e análise de fit das vagas. Vazio: evidências da Lia ou sinais do catálogo.
     analyst_api_key: SecretStr = Field(SecretStr(""), alias="ANALYST_LLM_API_KEY")
     analyst_model: str = Field("gpt-4o-mini", alias="ANALYST_LLM_MODEL")
 
-    interview_payments_enabled: bool = Field(True, alias="PF_INTERVIEW_PAYMENTS_ENABLED")
     stripe_secret_key: SecretStr = Field(SecretStr(""), alias="STRIPE_SECRET_KEY")
     stripe_webhook_secret: SecretStr = Field(SecretStr(""), alias="STRIPE_WEBHOOK_SECRET")
     # Stripe Tax só calcula onde a conta tem registro; no Brasil a NFS-e continua fora da Stripe.
@@ -68,10 +67,6 @@ class Settings(BaseSettings):
     @property
     def stripe_ready(self) -> bool:
         return self.stripe_secret_key.get_secret_value().startswith("sk_test_")
-
-    @property
-    def individual_checkout_available(self) -> bool:
-        return self.interview_payments_enabled and (self.stripe_ready or self.env != "prod")
 
     def check_production(self) -> None:
         if self.env != "prod":
