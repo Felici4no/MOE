@@ -5,7 +5,7 @@
   "description": "Protótipo de entrevista por voz e validador de evidências",
   "type": "module",
   "scripts": {
-    "test": "node --test"
+    "test": "node --experimental-strip-types --no-warnings --test \"tests/*.test.js\" \"tests/*.test.mjs\""
   },
   "engines": {
     "node": ">=20"
