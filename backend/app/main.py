@@ -10,6 +10,7 @@ from fastapi.responses import JSONResponse
 from app.api.routes import api, tools
 from app.core.config import Settings, get_settings
 from app.core.db import Database
+from app.moe.routes import router as moe_router
 from app.services.errors import ServiceError
 from app.services.interviews import LiveAgents
 
@@ -74,6 +75,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     app.include_router(api)
     app.include_router(tools)
+    app.include_router(moe_router)
     return app
 
 
