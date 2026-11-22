@@ -31,7 +31,7 @@ declare global {
 export async function loadAgora(): Promise<AgoraRTC> {
   if (process.env.NODE_ENV !== "production" && window.__agoraRTCOverride) return window.__agoraRTCOverride;
   if (!window.isSecureContext || !navigator.mediaDevices?.getUserMedia) {
-    throw new Error("Abra o Resona em HTTPS no Chrome, Safari, Edge ou Firefox para usar o microfone.");
+    throw new Error("Abra o MOE em HTTPS no Chrome, Safari, Edge ou Firefox para usar o microfone.");
   }
   const agora = (await import("agora-rtc-sdk-ng")).default;
   if (!agora.checkSystemRequirements()) {

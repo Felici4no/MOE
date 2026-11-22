@@ -61,7 +61,7 @@ class TenantAdmin:
                 raise ServiceError(402, f"O teste gratuito permite {TRIAL_INVITES} convites. Assine um plano para convidar mais pessoas.")
             raise ServiceError(402, "Você usou as entrevistas do plano neste mês. Troque de plano ou aguarde a renovação.")
         if Users(self.db).by_email(data.email):
-            raise ServiceError(409, "Este e-mail já tem conta no Resona.")
+            raise ServiceError(409, "Este e-mail já tem conta no MOE.")
         for existing in self.tenants.invites(self.tenant_id):
             if existing.email == data.email and existing.status == InviteStatus.sent:
                 raise ServiceError(409, "Já existe um convite ativo para este e-mail.")

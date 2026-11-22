@@ -60,7 +60,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
     <MeContext.Provider value={{ me, refresh }}>
       <div className={s.shell} data-room={inRoom || undefined}>
         <nav className={s.rail} aria-label="Principal">
-          <Link href={admin ? "/app/empresa" : "/app"} className={s.brand} aria-label="Resona, início"><Wordmark /></Link>
+          <Link href={admin ? "/app/empresa" : "/app"} className={s.brand} aria-label="MOE, início"><Wordmark /></Link>
           <ul>
             {items.map((item) => (
               <li key={item.href}>

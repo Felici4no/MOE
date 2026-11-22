@@ -24,7 +24,7 @@ export function SiteHeader() {
   return (
     <header className={s.header} data-open={open || undefined}>
       <div className={s.headerInner}>
-        <Link href="/" aria-label="Resona, página inicial"><Wordmark /></Link>
+        <Link href="/" aria-label="MOE, página inicial"><Wordmark /></Link>
         <nav id="site-nav" className={s.nav} aria-label="Principal">
           <ul>{LINKS.map((l) => <li key={l.href}><a href={l.href} onClick={() => setOpen(false)}>{l.label}</a></li>)}</ul>
           <div className={s.navActions}>

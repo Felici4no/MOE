@@ -50,15 +50,15 @@ class Mailer:
         about = f"a vaga {job}" if job else "uma conversa de pontos fortes"
         how = (f"É uma entrevista por voz com a Lia ({minutes}), sem questionário: você conta histórias reais de como trabalha."
                if tests else "É uma simulação no escritório: você conversa com personagens do time, da gerência e da diretoria.")
-        text = (f"{hello}\n\n{company} convidou você para {about} no Resona.\n\n"
+        text = (f"{hello}\n\n{company} convidou você para {about} no MOE.\n\n"
                 f"{how}\n\nAceite o convite: {link}\n\n"
                 f"Use fone e microfone num lugar tranquilo. Se a conexão cair, você tem até 3 tentativas.\n"
                 f"O convite vale até {expires}.\n")
-        html = (f"<p>{escape(hello)}</p><p><b>{escape(company)}</b> convidou você para {escape(about)} no Resona.</p>"
+        html = (f"<p>{escape(hello)}</p><p><b>{escape(company)}</b> convidou você para {escape(about)} no MOE.</p>"
                 f"<p>{escape(how)}</p>"
                 f'<p><a href="{escape(link)}" style="display:inline-block;padding:12px 22px;background:#2e5bff;'
                 f'color:#fcfcfd;border-radius:9999px;text-decoration:none;font-weight:500">Aceitar convite</a></p>'
                 f"<p>Use fone e microfone num lugar tranquilo. Se a conexão cair, você tem até 3 tentativas. "
                 f"O convite vale até {escape(expires)}.</p>")
-        subject = f"{company}: convite para {job}" if job else f"{company} convidou você para o Resona"
+        subject = f"{company}: convite para {job}" if job else f"{company} convidou você para o MOE"
         return self.send(to, subject, text, html)

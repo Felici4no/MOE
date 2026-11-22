@@ -38,15 +38,15 @@ const PLANS = [
 const FAQ = [
   { q: "O candidato precisa instalar alguma coisa?", a: "Não. Ele abre o link do convite no navegador, cria uma senha e conversa com a Lia usando o microfone. Na sala dá para escolher o microfone e a saída de áudio e testar os dois antes de começar." },
   { q: "Como a IA chega à nota de fit?", a: "A Lia conduz uma entrevista por voz de cerca de 10 minutos sobre histórias reais de trabalho. Depois, a análise compara as falas com os valores da sua cultura, as soft skills e o perfil comportamental da vaga. Cada nota alta precisa de uma frase literal do candidato; sem frase, a nota fica limitada." },
-  { q: "Qual planilha posso importar?", a: "Excel (.xlsx) ou CSV com uma coluna de e-mail e, se quiser, uma de nome. A Resona encontra as colunas pelo cabeçalho, ignora e-mails repetidos e mostra as linhas com problema." },
+  { q: "Qual planilha posso importar?", a: "Excel (.xlsx) ou CSV com uma coluna de e-mail e, se quiser, uma de nome. O MOE encontra as colunas pelo cabeçalho, ignora e-mails repetidos e mostra as linhas com problema." },
   { q: "O que a empresa vê do candidato?", a: "A análise de fit, os diferenciais e os trechos que sustentam cada nota, e só depois que a pessoa autoriza ao aceitar o convite. A transcrição completa e o áudio ficam com o candidato, que pode retirar a autorização." },
-  { q: "A Resona decide quem contratar?", a: "Não. O ranking organiza a conversa do RH e mostra onde aprofundar. A decisão continua sendo das pessoas, com outras etapas do processo." },
+  { q: "O MOE decide quem contratar?", a: "Não. O ranking organiza a conversa do RH e mostra onde aprofundar. A decisão continua sendo das pessoas, com outras etapas do processo." },
   { q: "Posso testar antes de assinar?", a: "Sim. O espaço da empresa vem com 5 convites de teste, sem cartão. Os valores dos planos são de referência e podem mudar." },
 ];
 
 function RankingShot() {
   return (
-    <div className={s.browser} role="img" aria-label="Tela da Resona com o ranking de fit da vaga Analista de Customer Success, com dados fictícios">
+    <div className={s.browser} role="img" aria-label="Tela do MOE com o ranking de fit da vaga Analista de Customer Success, com dados fictícios">
       <div className={s.chrome} aria-hidden><i /><i /><i /><span>resona.app/empresa/vagas/cs-pleno</span></div>
       <div className={s.app} aria-hidden>
         <div className={s.appTop}>
@@ -182,7 +182,7 @@ export default function Landing() {
               <div className={s.featureText}>
                 <span className={s.kicker}>Convites em lote</span>
                 <h3>Uma planilha, todos os convites</h3>
-                <p>Importe o Excel com nome e e-mail. A Resona acha as colunas, ignora repetidos e envia um link para cada candidato criar a conta e começar a entrevista.</p>
+                <p>Importe o Excel com nome e e-mail. O MOE acha as colunas, ignora repetidos e envia um link para cada candidato criar a conta e começar a entrevista.</p>
                 <ul className={s.ticks}><li><Upload />.xlsx ou .csv</li><li><Check />Acompanhe quem aceitou e quem já conversou</li></ul>
               </div>
               <ImportShot />
@@ -228,7 +228,7 @@ export default function Landing() {
               <figcaption><span className={s.mono} aria-hidden>SH</span><span><b>SHRM</b>Culture Report, 2019</span></figcaption>
             </figure>
           </div>
-          <p className={s.note}>Números de estudos de terceiros, em contextos diferentes do seu. Não são resultados da Resona.</p>
+          <p className={s.note}>Números de estudos de terceiros, em contextos diferentes do seu. Não são resultados do MOE.</p>
         </section>
 
         {/* 7. Planos */}
@@ -290,9 +290,9 @@ export default function Landing() {
           <nav aria-label="Fontes"><h2>Fontes</h2><ul>{SOURCES.slice(0, 4).map((x) => <li key={x.name}><a href={x.href} target="_blank" rel="noreferrer">{x.name}</a></li>)}</ul></nav>
         </div>
         <div className={`${s.wrap} ${s.footBottom}`}>
-          <p>© 2026 Resona</p>
+          <p>© 2026 MOE</p>
           <p className={s.social}>Redes sociais em breve</p>
-          <p>A Resona apoia a decisão de contratação; não é teste psicológico e não decide sozinha.</p>
+          <p>O MOE apoia a decisão de contratação; não é teste psicológico e não decide sozinha.</p>
         </div>
       </footer>
     </>

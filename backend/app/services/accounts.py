@@ -96,7 +96,7 @@ class Accounts:
         if not verify_password(data.password, user.password_hash if user else None):
             raise ServiceError(401, LOGIN_FAILED)
         if user.kind != AccountKind.member:
-            raise ServiceError(409, "O Resona agora atende só empresas. Peça um convite de vaga à empresa.")
+            raise ServiceError(409, "O MOE agora atende só empresas. Peça um convite de vaga à empresa.")
         return user
 
     def me(self, user: User) -> Me:

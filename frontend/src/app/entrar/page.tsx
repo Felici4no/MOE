@@ -64,7 +64,7 @@ function Door() {
 export default function Page() {
   return (
     <div className={s.page}>
-      <header className={s.top}><Link href="/" aria-label="Resona, página inicial"><Wordmark /></Link></header>
+      <header className={s.top}><Link href="/" aria-label="MOE, página inicial"><Wordmark /></Link></header>
       <Suspense><Door /></Suspense>
     </div>
   );

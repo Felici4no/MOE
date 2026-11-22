@@ -1,4 +1,4 @@
-/* Simulação no escritório, na identidade Resona: fundo branco, Host Grotesk, azul só para ação e "sua vez".
+/* Simulação no escritório, na identidade MOE: fundo branco, Host Grotesk, azul só para ação e "sua vez".
    O escritório em pixel art fica numa moldura escura, como a cena da sala da Lia. */
 
 .entry, .office, .result { min-height: 100dvh; background: var(--ground); color: var(--ink); display: flex; flex-direction: column; }

@@ -131,7 +131,7 @@ function CompanyRun({ cenario, sessao: sessaoId }: { cenario: string | null; ses
 
 function Marca() {
   return (
-    <Link href="/" className={s.brand} aria-label="Resona, início">
+    <Link href="/" className={s.brand} aria-label="MOE, início">
       <Wordmark />
       <span className={s.brandSub}>Simulação no escritório</span>
     </Link>

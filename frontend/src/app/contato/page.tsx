@@ -21,7 +21,7 @@ export default function Contact() {
 
   return (
     <div className={s.page}>
-      <header className={s.top}><Link href="/" aria-label="Resona, página inicial"><Wordmark /></Link></header>
+      <header className={s.top}><Link href="/" aria-label="MOE, página inicial"><Wordmark /></Link></header>
       <main className={s.main}>
         <div>
           <h1>Falar com vendas</h1>

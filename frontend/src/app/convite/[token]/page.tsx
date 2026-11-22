@@ -50,7 +50,7 @@ export default function AcceptInvite({ params }: { params: Promise<{ token: stri
               <div className="field"><label htmlFor="name">Seu nome</label><input id="name" name="name" defaultValue={preview.name} required minLength={2} autoComplete="name" /></div>
             )}
             <div className="field">
-              <label htmlFor="password">{preview.has_account ? "Senha da sua conta Resona" : "Crie uma senha"}</label>
+              <label htmlFor="password">{preview.has_account ? "Senha da sua conta MOE" : "Crie uma senha"}</label>
               <input id="password" name="password" type="password" required minLength={preview.has_account ? 1 : 10}
                      autoComplete={preview.has_account ? "current-password" : "new-password"} aria-describedby={preview.has_account ? undefined : "pwh"} />
               {!preview.has_account && <span className="hint" id="pwh">Pelo menos 10 caracteres</span>}

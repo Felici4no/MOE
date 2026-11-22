@@ -1,6 +1,6 @@
 import s from "./Wordmark.module.css";
 
-/** Marca Resona: três barras de nível (a voz e o ranking) num quadrado azul. */
+/** Marca MOE: três barras de nível (a voz e o ranking) num quadrado azul. */
 export function Wordmark({ inverse = false }: { inverse?: boolean }) {
   return (
     <span className={s.mark} data-inverse={inverse || undefined}>
@@ -10,7 +10,7 @@ export function Wordmark({ inverse = false }: { inverse?: boolean }) {
         <rect x="11.5" y="6" width="3" height="14" rx="1.5" fill="#fcfcfd" />
         <rect x="17" y="10" width="3" height="10" rx="1.5" fill="#fcfcfd" />
       </svg>
-      Resona
+      MOE
     </span>
   );
 }

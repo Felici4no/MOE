@@ -5,7 +5,7 @@ import "./globals.css";
 const sans = Host_Grotesk({ subsets: ["latin"], variable: "--font-sans", weight: ["400", "500", "600"], display: "swap" });
 
 export const metadata: Metadata = {
-  title: { default: "Resona · contratação por fit cultural", template: "%s · Resona" },
+  title: { default: "MOE · contratação por fit cultural", template: "%s · MOE" },
   description: "Entrevista por voz que ranqueia candidatos por fit cultural, perfil comportamental e soft skills, com a frase de cada pessoa que sustenta a nota.",
 };
 

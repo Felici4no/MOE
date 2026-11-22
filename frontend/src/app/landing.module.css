@@ -1,4 +1,4 @@
-/* Landing da Resona. Um fundo branco, sem divisórias; ritmo pelo espaço e pelas molduras. */
+/* Landing do MOE. Um fundo branco, sem divisórias; ritmo pelo espaço e pelas molduras. */
 .wrap { width: 100%; max-width: calc(var(--container) + 2 * var(--gutter)); margin: 0 auto; padding: 0 var(--gutter); }
 .skip { position: absolute; left: -9999px; top: 8px; z-index: 50; background: var(--ink); color: var(--on-inverse); padding: 8px 14px; border-radius: var(--pill); }
 .skip:focus { left: 16px; }
