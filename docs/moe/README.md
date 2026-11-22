@@ -63,9 +63,13 @@ frontend/src/lib/moe/          useOfficeBridge (host), voice.ts (estado de voz d
 - Deploys automáticos via Git estão **desligados** para `feat/moe-playable` e `feat/office-pixelagents-vendor` (o projeto builda a raiz por padrão). Preview desta sprint foi feito pela CLI.
 - Previews têm Vercel Authentication. A barra da Vercel injetada em Previews faz um `OPTIONS /` que retorna 400; não vem do app (os testes enviam `x-vercel-skip-toolbar`).
 
+## Empresa, pontos e personagens
+
+A empresa configura pontos (com peso), personagens (personalidade + voz + aparência) e cenários (cenas, pressão, clima) em `/app/empresa/moe`. Pessoas jogam em `/moe?cenario=<id>`, recebem a leitura por ponto e decidem se compartilham. Detalhes e contrato com a integração de voz: [`empresa-e-personagens.md`](empresa-e-personagens.md).
+
 ## Pendências
 
-1. Voz real (Agora + TTS por personagem), com teste de interrupção, permissão de microfone e reconexão.
+1. Voz real (Agora + TTS por personagem) usando `app.moe.prompting.scene_brief`, com teste de interrupção, permissão de microfone e reconexão.
 2. Decidir a configuração definitiva do projeto Vercel quando `pontos-fortes` for para a `main` (Root Directory `frontend` substituiria o `builds` legado) e reativar deploys Git.
 3. Rótulos de nome podem se sobrepor quando os NPCs ficam lado a lado no celular.
 4. Backend FastAPI não foi testado nesta sprint (não é usado pelo MOE; `pytest` indisponível no ambiente).
