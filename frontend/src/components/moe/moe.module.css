@@ -140,3 +140,10 @@
   .btn, .cta { transition: none; }
   .btn:hover, .cta:hover { transform: none; }
 }
+
+/* Personas e cenários da empresa ---------------------------------------- */
+.persona { display: block; font-size: .9rem; color: var(--ink-soft); font-family: ui-monospace, Menlo, Consolas, monospace; letter-spacing: .02em; margin-top: 4px; }
+.cast li { flex-wrap: wrap; }
+.actions { display: flex; flex-wrap: wrap; gap: 14px; margin-top: 24px; }
+.sectionTitle { font-size: clamp(1.4rem, 3vw, 2rem); font-weight: 800; margin-top: 36px; }
+.consent { margin-top: 28px; padding: 18px; border: var(--moe-line); box-shadow: var(--moe-shadow); background: var(--paper); display: grid; gap: 10px; justify-items: start; }
