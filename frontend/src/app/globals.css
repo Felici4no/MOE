@@ -68,7 +68,8 @@
 }
 
 * { box-sizing: border-box; }
-html { -webkit-text-size-adjust: 100%; background: var(--ground); }
+html { -webkit-text-size-adjust: 100%; background: var(--ground); overflow-x: clip; }
+body { overflow-x: clip; }
 body {
   margin: 0; background: var(--ground); color: var(--ink);
   font: 400 16px/1.55 var(--sans);

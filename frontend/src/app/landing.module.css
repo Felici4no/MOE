@@ -335,3 +335,9 @@
   .heroCopy h1 { font-size: 40px; }
   .bandHead h2 { font-size: 32px; }
 }
+@media (max-width: 480px) {
+  .heroCopy h1 { font-size: clamp(30px, 10vw, 40px); }
+  .hero .actions .btn { white-space: normal; text-align: center; width: 100%; }
+  .figures { grid-template-columns: 1fr 1fr; }
+  .figures dd { white-space: normal; }
+}
