@@ -1,0 +1,13 @@
+{
+  "name": "mapa-de-talentos",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Protótipo de entrevista por voz e validador de evidências",
+  "type": "module",
+  "scripts": {
+    "test": "node --test"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
