@@ -1,0 +1,5 @@
+/* Estilos do upstream, sem alterações, + varredura das fontes upstream pelo Tailwind
+   (a raiz do build MOE é webview-ui/moe/, então as classes usadas em ../src
+   — ex.: OfficeCanvas `w-full h-full` — precisam ser declaradas como fonte). */
+@import '../src/index.css';
+@source '../src';
