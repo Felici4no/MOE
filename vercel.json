@@ -1,0 +1,11 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "builds": [{ "src": "frontend/package.json", "use": "@vercel/next" }],
+  "routes": [{ "src": "/(?!frontend/)(.*)", "dest": "/frontend/$1" }],
+  "git": {
+    "deploymentEnabled": {
+      "feat/moe-playable": false,
+      "feat/office-pixelagents-vendor": false
+    }
+  }
+}

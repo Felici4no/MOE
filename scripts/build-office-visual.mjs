@@ -36,8 +36,12 @@ function hashDir(dir, h) {
   }
 }
 
-const vendorRev = execFileSync('git', ['rev-parse', 'HEAD'], { cwd: vendor }).toString().trim();
-const h = createHash('sha256').update(vendorRev);
+// Carimbo independente de .git (um upload para a Vercel não traz metadados git):
+// versão + lockfile do upstream e as fontes da entrada MOE.
+const h = createHash('sha256')
+  .update(readFileSync(resolve(vendor, 'package.json')))
+  .update(readFileSync(resolve(vendor, 'package-lock.json')));
+hashDir(resolve(webview, 'src'), h);
 hashDir(source, h);
 const stamp = h.digest('hex');
 
@@ -46,9 +50,11 @@ if (!force && existsSync(stampFile) && readFileSync(stampFile, 'utf8') === stamp
   process.exit(0);
 }
 
-if (!existsSync(resolve(vendor, 'node_modules', 'vite'))) {
+const hasDep = (...parts) => [resolve(vendor, 'node_modules', ...parts), resolve(webview, 'node_modules', ...parts)].some(existsSync);
+if (!hasDep('vite') || !hasDep('@tailwindcss', 'vite')) {
   console.log('[moe] instalando dependências do Pixel Agents (npm ci)...');
-  execFileSync('npm', ['ci', '--ignore-scripts', '--no-audit', '--no-fund'], { cwd: vendor, stdio: 'inherit', shell, env: { ...process.env, CI: 'true' } });
+  // --include=dev: builds da Vercel rodam com NODE_ENV=production, que omitiria vite/tailwind.
+  execFileSync('npm', ['ci', '--include=dev', '--ignore-scripts', '--no-audit', '--no-fund'], { cwd: vendor, stdio: 'inherit', shell, env: { ...process.env, CI: 'true', NODE_ENV: 'development' } });
 }
 
 try {

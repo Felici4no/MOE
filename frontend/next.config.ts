@@ -15,10 +15,6 @@ const nextConfig: NextConfig = {
   async rewrites() {
     return process.env.NODE_ENV === "production" ? [] : [{ source: "/api/:path*", destination: `${api}/api/:path*` }];
   },
-  async redirects() {
-    // Compatibilidade: /office passa a apontar para a rota canônica do MOE.
-    return [{ source: "/office", destination: "/moe", permanent: false }];
-  },
 };
 
 export default nextConfig;
