@@ -8,7 +8,10 @@ mkdir -p "$OUT"
 mkdir -p "$STAGE/backend" "$STAGE/frontend" "$STAGE/deploy"
 cp -r backend/app "$STAGE/backend/"
 backend/.venv/bin/pip freeze --exclude-editable | grep -v '^pytest\|^pluggy\|^iniconfig' > "$STAGE/backend/requirements.lock"
-cp -r frontend/.next/standalone/. "$STAGE/frontend/"
+# Com outputFileTracingRoot na raiz do repo, o Next aninha o servidor em standalone/frontend/.
+SA=frontend/.next/standalone; [ -f "$SA/frontend/server.js" ] && SA="$SA/frontend"
+cp -r "$SA/." "$STAGE/frontend/"
+test -f "$STAGE/frontend/server.js" || { echo "server.js ausente no pacote" >&2; exit 1; }
 mkdir -p "$STAGE/frontend/.next" && cp -r frontend/.next/static "$STAGE/frontend/.next/static"
 [ -d frontend/public ] && cp -r frontend/public "$STAGE/frontend/public"
 cp deploy/pf-api.service deploy/pf-web.service deploy/nginx.conf deploy/install.sh "$STAGE/deploy/"
