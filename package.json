@@ -1,13 +1,50 @@
 {
   "name": "mapa-de-talentos",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
-  "description": "Protótipo de entrevista por voz e validador de evidências",
+  "description": "Mapa de Talentos: entrevista por voz, validador de evidências e relatório editorial",
   "type": "module",
   "scripts": {
-    "test": "node --test"
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "eslint .",
+    "typecheck": "tsc --noEmit",
+    "test": "npm run test:domain && npm run test:unit",
+    "test:domain": "node --test tests/validar-relatorio.test.js",
+    "test:unit": "vitest run",
+    "test:e2e": "playwright test",
+    "pdf:exemplo": "node --experimental-strip-types scripts/gerar-pdf-exemplo.tsx"
   },
   "engines": {
     "node": ">=20"
+  },
+  "dependencies": {
+    "@react-email/components": "^1.0.12",
+    "@react-email/render": "^2.3.1",
+    "@react-pdf/renderer": "^4.9.0",
+    "lucide-react": "^1.77.0",
+    "next": "^16.4.6",
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1",
+    "resend": "^6.39.0",
+    "server-only": "^0.0.1",
+    "zod": "^4.6.7"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.65.1",
+    "@tailwindcss/postcss": "^4.3.5",
+    "@testing-library/dom": "^10.4.2",
+    "@testing-library/react": "^16.3.3",
+    "@types/node": "^22.20.5",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "@vitejs/plugin-react": "^6.3.0",
+    "eslint": "^9.39.5",
+    "eslint-config-next": "^16.4.6",
+    "jsdom": "^31.0.1",
+    "tailwindcss": "^4.3.5",
+    "typescript": "^5.9.3",
+    "vitest": "^5.1.1"
   }
 }

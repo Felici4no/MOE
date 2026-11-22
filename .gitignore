@@ -8,3 +8,10 @@ dist/
 *.log
 transcricoes/
 relatorios-reais/
+.next/
+out/
+next-env.d.ts
+*.tsbuildinfo
+playwright-report/
+test-results/
+.vercel
