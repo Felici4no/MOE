@@ -1,0 +1,59 @@
+.page { max-width: 1120px; display: grid; gap: 2rem; }
+.head { display: flex; align-items: flex-end; justify-content: space-between; gap: 1rem; flex-wrap: wrap; }
+.head h1 { font-size: clamp(2.4rem, 5vw, 4rem); font-weight: 800; font-stretch: 75%; }
+.periods { display: flex; gap: .25rem; background: var(--paper); border: 1px solid var(--line); padding: .25rem; border-radius: var(--radius); }
+.periods button { min-height: 36px; padding: 0 .85rem; border: 0; border-radius: 7px; background: none; font-weight: 600; font-size: 14px; cursor: pointer; color: var(--ink-soft); }
+.periods button[aria-pressed="true"] { background: var(--ink); color: var(--on-ink); }
+
+.figures { display: grid; grid-template-columns: repeat(4, 1fr); border-top: 2px solid var(--ink); border-bottom: 1px solid var(--line); }
+.figures div { display: grid; gap: .3rem; padding: 1.1rem 1.25rem 1.25rem 0; }
+.figures div + div { padding-left: 1.25rem; border-left: 1px solid var(--line); }
+.figures b { font-size: clamp(2.2rem, 4vw, 3.2rem); font-weight: 800; font-stretch: 75%; line-height: 1; }
+.figures span { font-size: 14px; color: var(--ink-soft); max-width: 24ch; }
+
+.block { display: grid; gap: .75rem; background: var(--paper); border: 1px solid var(--line); border-radius: var(--radius-lg); padding: 1.25rem 1.5rem; align-content: start; }
+.block h2 { font-size: 1.45rem; font-weight: 800; }
+.sub { margin-top: .75rem; font-size: 1.15rem !important; }
+.blockHead { display: flex; justify-content: space-between; align-items: center; gap: 1rem; flex-wrap: wrap; }
+.note { font-size: 13.5px; color: var(--ink-mute); max-width: 60ch; }
+.empty { font-family: var(--read); color: var(--ink-mute); }
+.grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1.25rem; }
+
+.bars, .funnel { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
+.bars li, .funnel li { display: grid; grid-template-columns: minmax(120px, 34%) 1fr 3.5rem; align-items: center; gap: .75rem; min-height: 30px; border-radius: 6px; padding: 0 .25rem; }
+.bars li:hover, .funnel li:hover { background: var(--ground); }
+.barLabel { font-size: 14px; overflow-wrap: anywhere; }
+.barValue { font-size: 14px; font-weight: 700; text-align: right; white-space: nowrap; }
+.barValue small { font-weight: 500; color: var(--ink-mute); }
+.funnel li { grid-template-columns: minmax(150px, 30%) 1fr 6rem; }
+.track { display: block; height: 20px; }
+.track i { display: block; height: 100%; min-width: 2px; background: var(--domain, var(--pensar)); border-radius: 0 4px 4px 0; transition: width .5s var(--ease); }
+.funnel .track i { background: var(--ink); }
+
+.legend { list-style: none; margin: 0; padding: 0; display: flex; gap: 1rem; flex-wrap: wrap; font-size: 13.5px; color: var(--ink-soft); }
+.legend li { display: inline-flex; align-items: center; gap: .4rem; }
+.legend i { width: 12px; height: 12px; border-radius: 3px; display: inline-block; }
+.swInvited { background: #7c86b0; }
+.swDone { background: var(--pensar); }
+.swDomain { background: var(--domain); }
+
+.weeks { display: grid; grid-template-columns: repeat(8, 1fr); gap: .5rem; height: 200px; align-items: flex-end; border-bottom: 1px solid var(--line-strong); padding-top: 1.5rem; }
+.week { display: grid; grid-template-rows: 1fr auto; height: 100%; gap: .35rem; }
+.cols { display: flex; align-items: flex-end; justify-content: center; gap: 2px; height: 100%; }
+.cols span { position: relative; width: min(18px, 40%); min-height: 2px; border-radius: 4px 4px 0 0; }
+.colInvited { background: #7c86b0; }
+.colDone { background: var(--pensar); }
+.cols span:hover::after { content: attr(data-tip); position: absolute; bottom: calc(100% + 6px); left: 50%; transform: translateX(-50%); white-space: nowrap; background: var(--ink); color: var(--on-ink); font-size: 12.5px; padding: .3rem .5rem; border-radius: 6px; z-index: 1; }
+.weekLabel { font-size: 12px; color: var(--ink-mute); text-align: center; transform: translateY(1.4rem); }
+.table { margin-top: 1.25rem; font-size: 14px; }
+.table summary { cursor: pointer; font-weight: 600; }
+.table table { border-collapse: collapse; margin-top: .5rem; }
+.table th, .table td { text-align: left; padding: .3rem 1rem .3rem 0; border-bottom: 1px solid var(--line); }
+
+@media (max-width: 860px) {
+  .figures { grid-template-columns: 1fr 1fr; }
+  .figures div:nth-child(3) { padding-left: 0; border-left: 0; }
+  .figures div:nth-child(n+3) { border-top: 1px solid var(--line); }
+  .grid { grid-template-columns: 1fr; }
+  .weeks { gap: .2rem; }
+}

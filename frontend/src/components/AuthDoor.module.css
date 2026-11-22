@@ -1,0 +1,98 @@
+.door {
+  display: grid;
+  gap: var(--space-4);
+  padding: clamp(var(--space-4), 3vw, var(--space-8));
+  border-radius: var(--radius-lg);
+  background: var(--paper);
+  box-shadow: var(--shadow);
+}
+
+.door h2 {
+  font-size: clamp(1.75rem, 3vw, 2.25rem);
+  line-height: 1.08;
+}
+
+.portals,
+.switch {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.portals {
+  gap: var(--space-1);
+  padding: var(--space-1);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--ground);
+}
+
+.portals button,
+.switch button {
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  padding: var(--space-2);
+  border: 0;
+  background: transparent;
+  color: var(--ink-soft);
+  font-size: .9375rem;
+  font-weight: 600;
+  line-height: 1.25;
+  cursor: pointer;
+  transition: background-color .16s var(--ease), color .16s var(--ease);
+}
+
+.portals button { border-radius: calc(var(--radius) - var(--space-1)); }
+.portals button:hover { background-color: var(--line); color: var(--ink); }
+.switch button:hover { background-color: var(--ground); color: var(--ink); }
+.portals button[aria-pressed="true"] { background-color: var(--ink); color: var(--on-ink); }
+.portals button:disabled,
+.switch button:disabled { cursor: default; }
+
+.portals svg { width: 18px; height: 18px; flex: none; }
+
+.description {
+  min-height: 3em;
+  color: var(--ink-soft);
+  line-height: 1.5;
+}
+
+.switch { border-bottom: 1px solid var(--line); }
+.switch button { position: relative; }
+.switch button[aria-pressed="true"] { color: var(--ink); }
+.switch button[aria-pressed="true"]::after {
+  position: absolute;
+  inset: auto 0 -1px;
+  height: 2px;
+  background: currentColor;
+  content: "";
+}
+.switch button:focus-visible { z-index: 1; }
+
+.form { display: grid; gap: var(--space-3); }
+.password { position: relative; }
+.password input { padding-inline-end: 52px; }
+
+.visibility {
+  position: absolute;
+  inset: 2px 2px auto auto;
+  display: grid;
+  width: 44px;
+  height: 44px;
+  place-items: center;
+  padding: 0;
+  border: 0;
+  border-radius: calc(var(--radius) - 2px);
+  background: transparent;
+  color: var(--ink-soft);
+  cursor: pointer;
+}
+.visibility:hover { background: var(--ground); color: var(--ink); }
+.visibility svg { width: 18px; height: 18px; }
+.submit { width: 100%; margin-top: var(--space-2); }
+
+@media (max-width: 480px) {
+  .door { gap: var(--space-3); }
+}

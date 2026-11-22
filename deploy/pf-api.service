@@ -1,0 +1,20 @@
+[Unit]
+Description=Pontos Fortes API (FastAPI)
+After=network-online.target postgresql.service
+Wants=network-online.target
+
+[Service]
+User=pf-api
+EnvironmentFile=/etc/pontos-fortes/runtime.env
+WorkingDirectory=/opt/pontos-fortes/current/backend
+# Um worker: salas Agora ativas ficam em memória.
+ExecStart=/opt/pontos-fortes/current/backend/.venv/bin/uvicorn app.main:app --host 127.0.0.1 --port 8000 --workers 1 --proxy-headers
+Restart=on-failure
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+MemoryMax=700M
+
+[Install]
+WantedBy=multi-user.target
