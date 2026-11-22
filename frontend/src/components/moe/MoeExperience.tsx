@@ -503,7 +503,7 @@ function Escritorio({ script, respostas, onAnswer, onRecomecar, onConcluir, voz 
                     : oculto ? (voz!.interim || voz!.heard ? "Ouvindo…" : "Pode falar.") : "Pode falar. O que você disser aparece aqui."}</span>
                 </div>
               )}
-              <textarea ref={inputRef} id={inputId} className={s.textarea} hidden={oculto} rows={3} maxLength={2000} value={texto}
+              <textarea ref={inputRef} id={inputId} className={s.textarea} hidden={oculto} style={oculto ? { display: "none" } : undefined} rows={3} maxLength={2000} value={texto}
                 disabled={fase !== "ouvindo" || enviando} aria-invalid={!!erro} aria-describedby={erro ? `${inputId}-err` : undefined}
                 placeholder={porVoz && fase === "ouvindo" ? "Ouvindo…" : undefined}
                 onChange={(e) => { setTexto(e.target.value); if (porVoz) setEditado(true); if (erro) setErro(null); }}
@@ -530,12 +530,14 @@ function Escritorio({ script, respostas, onAnswer, onRecomecar, onConcluir, voz 
             </form>
           )}
 
-          <ol className={s.captions} aria-label="Legendas da conversa" hidden={oculto}>
-            {legendas.map((l, i) => (
-              <li key={i} data-me={l.participante || undefined}><b>{l.quem}</b> {l.texto}</li>
-            ))}
-            <li ref={logEndRef} aria-hidden="true" />
-          </ol>
+          {!oculto && (
+            <ol className={s.captions} aria-label="Legendas da conversa">
+              {legendas.map((l, i) => (
+                <li key={i} data-me={l.participante || undefined}><b>{l.quem}</b> {l.texto}</li>
+              ))}
+              <li ref={logEndRef} aria-hidden="true" />
+            </ol>
+          )}
         </section>
       </div>
       <p className={s.footNotice}>{AVISO_MOE}</p>
