@@ -1,0 +1,23 @@
+[build-system]
+requires = ["setuptools>=75"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "pontos-fortes-api"
+version = "0.1.0"
+requires-python = ">=3.12,<3.13"
+dependencies = [
+  "fastapi==0.165.0", "uvicorn[standard]==0.54.0", "pydantic==2.14.4", "pydantic-settings==2.16.3",
+  "email-validator==2.4.0", "SQLAlchemy==2.1.9", "psycopg[binary]==3.3.9", "argon2-cffi==25.1.0",
+  "PyJWT==2.15.1", "stripe==17.1.0", "httpx==0.28.1", "agora-agents==2.15.0",
+]
+
+[project.optional-dependencies]
+test = ["pytest==9.2.0"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
+
+[tool.setuptools.packages.find]
+include = ["app*"]

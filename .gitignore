@@ -8,3 +8,18 @@ dist/
 *.log
 transcricoes/
 relatorios-reais/
+
+# Pontos Fortes
+.runtime/
+backend/.venv/
+**/__pycache__/
+.pytest_cache/
+frontend/node_modules/
+frontend/.next/
+frontend/next-env.d.ts
+materiais/raw/
+materiais/texto/
+.impeccable/mocks/
+.impeccable/review/
+.runtime-*.log
+*.egg-info/

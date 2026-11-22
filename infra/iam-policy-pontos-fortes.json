@@ -1,0 +1,40 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "LightsailRead",
+      "Effect": "Allow",
+      "Action": [
+        "lightsail:GetBundles",
+        "lightsail:GetInstance",
+        "lightsail:GetInstances",
+        "lightsail:GetInstanceState",
+        "lightsail:GetKeyPair",
+        "lightsail:GetKeyPairs",
+        "lightsail:GetStaticIp",
+        "lightsail:GetStaticIps"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Sid": "LightsailPontosFortes",
+      "Effect": "Allow",
+      "Action": [
+        "lightsail:CreateInstances",
+        "lightsail:CreateKeyPair",
+        "lightsail:AllocateStaticIp",
+        "lightsail:AttachStaticIp",
+        "lightsail:PutInstancePublicPorts",
+        "lightsail:TagResource"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Sid": "DeleteOnlyOpenSenseTagged",
+      "Effect": "Allow",
+      "Action": "lightsail:DeleteInstance",
+      "Resource": "*",
+      "Condition": { "StringEquals": { "aws:ResourceTag/Project": "opensense" } }
+    }
+  ]
+}

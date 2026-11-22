@@ -1,0 +1,18 @@
+[Unit]
+Description=Pontos Fortes Web (Next.js standalone)
+After=network-online.target
+
+[Service]
+User=pf-web
+Environment=NODE_ENV=production PORT=3000 HOSTNAME=127.0.0.1
+WorkingDirectory=/opt/pontos-fortes/current/frontend
+ExecStart=/usr/bin/node server.js
+Restart=on-failure
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+MemoryMax=400M
+
+[Install]
+WantedBy=multi-user.target
