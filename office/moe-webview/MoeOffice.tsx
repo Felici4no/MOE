@@ -4,6 +4,7 @@
  * Reaproveitado sem modificação: OfficeState (mundo, assentos, FSM dos personagens),
  * OfficeCanvas (canvas, DPR, hit-test), renderer, sprites, perfis de personagem e
  * o protocolo de mensagens (`agentCreated`, `agentStatus`) tratado por useExtensionMessages.
+ * O elenco (nomes, papéis, aparência) chega do host por `moe:cast`.
  *
  * Removido da experiência: terminais, editor de layout, barra de cards, rádio,
  * roster, conversas, usage bars e qualquer controle de agentes de código.
@@ -20,15 +21,11 @@ import { OfficeState } from '../src/office/engine/officeState.js';
 import { overlayProjection } from '../src/office/projection.js';
 import { TILE_SIZE, TileType } from '../src/office/types.js';
 import { onHostMessage, postToHost } from './hostBridge';
-import { MOE_NPCS, type MoeNpc } from './protocol';
+import type { CastMember, MoeNpc } from './protocol';
 
-/** Elenco: ids de personagem fora da faixa usada por agentes reais; looks dos perfis padrão. */
-const CAST: Record<MoeNpc, { id: number; palette: number; nome: string; papel: string }> = {
-  maia: { id: 9101, palette: 1, nome: 'Maia', papel: 'Gestora' },
-  leo: { id: 9102, palette: 2, nome: 'Léo', papel: 'Colega' },
-  nara: { id: 9103, palette: 3, nome: 'Nara', papel: 'Cliente interno' },
-};
-const NPC_BY_ID = new Map<number, MoeNpc>(MOE_NPCS.map((n) => [CAST[n].id, n]));
+/** Personagem em cena: id de personagem fora da faixa usada por agentes reais. */
+type Spawned = CastMember & { id: number };
+const FIRST_ID = 9101;
 
 const officeStateRef = { current: null as OfficeState | null };
 function getOfficeState(): OfficeState {
@@ -82,44 +79,62 @@ export function MoeOffice() {
   const panRef = useRef({ x: 0, y: 0 });
   const [zoom, setZoom] = useState(ZOOM_MIN);
   const [speaking, setSpeaking] = useState<MoeNpc | null>(null);
+  const [cast, setCast] = useState<Spawned[]>([]);
+  const castRef = useRef<Spawned[]>([]);
+  const pendingCast = useRef<CastMember[] | null>(null);
+  const framed = useRef(false);
   const spawned = useRef(false);
   const noop = useCallback(() => {}, []);
 
-  // Assets e layout originais, depois que o listener do hook estiver registrado.
-  useEffect(() => {
-    dispatchMockMessages();
-  }, []);
-
-  // Com o layout pronto: enquadra o escritório e coloca Maia, Léo e Nara em assentos reais.
-  useEffect(() => {
-    if (!layoutReady || spawned.current) return;
+  /** Cria os personagens pelo protocolo do upstream (agentCreated), com o visual de cada um. */
+  const spawn = useCallback((members: CastMember[]) => {
+    if (spawned.current) return;
     spawned.current = true;
-    const framed = frameOffice(containerRef.current);
-    panRef.current = framed.pan;
-    setZoom(framed.zoom);
-    for (const npc of MOE_NPCS) {
-      deliver({ type: 'agentCreated', id: CAST[npc].id, palette: CAST[npc].palette, repeat: 0 });
-      deliver({ type: 'agentStatus', id: CAST[npc].id, status: 'idle' });
+    const seen = new Map<number, number>();
+    const list: Spawned[] = members.map((m, i) => ({ ...m, id: FIRST_ID + i }));
+    for (const m of list) {
+      const repeat = seen.get(m.look) ?? 0; // mesmo visual duas vezes → outra cor de roupa (regra do upstream)
+      seen.set(m.look, repeat + 1);
+      deliver({ type: 'agentCreated', id: m.id, palette: m.look, repeat });
+      deliver({ type: 'agentStatus', id: m.id, status: 'idle' });
     }
+    castRef.current = list;
+    setCast(list);
     const os = getOfficeState();
-    const present = MOE_NPCS.filter((n) => os.characters.has(CAST[n].id));
+    const present = list.filter((m) => os.characters.has(m.id)).map((m) => m.key);
     (window as unknown as { __moeOffice?: unknown }).__moeOffice = {
       ready: true,
       characters: present,
       layout: { cols: os.getLayout().cols, rows: os.getLayout().rows, furniture: os.getLayout().furniture.length },
     };
     postToHost({ source: 'moe-office', type: 'moe:ready', npcs: present });
-  }, [layoutReady]);
+  }, []);
+
+  // Assets e layout originais, depois que o listener do hook estiver registrado.
+  useEffect(() => {
+    dispatchMockMessages();
+  }, []);
+
+  // Com o layout pronto: enquadra o escritório e pede o elenco ao host.
+  useEffect(() => {
+    if (!layoutReady || framed.current) return;
+    framed.current = true;
+    const f = frameOffice(containerRef.current);
+    panRef.current = f.pan;
+    setZoom(f.zoom);
+    if (pendingCast.current) spawn(pendingCast.current);
+    else postToHost({ source: 'moe-office', type: 'moe:layout' });
+  }, [layoutReady, spawn]);
 
   // Reenquadra ao redimensionar.
   useEffect(() => {
     const el = containerRef.current;
     if (!el) return;
     const ro = new ResizeObserver(() => {
-      if (!spawned.current) return;
-      const framed = frameOffice(el);
-      panRef.current = framed.pan;
-      setZoom(framed.zoom);
+      if (!framed.current) return;
+      const f = frameOffice(el);
+      panRef.current = f.pan;
+      setZoom(f.zoom);
     });
     ro.observe(el);
     return () => ro.disconnect();
@@ -130,24 +145,32 @@ export function MoeOffice() {
     () =>
       onHostMessage((msg) => {
         const os = getOfficeState();
+        const idOf = (npc: MoeNpc | null) => castRef.current.find((m) => m.key === npc)?.id;
         switch (msg.type) {
-          case 'moe:focus':
-            // Destaca o personagem (contorno de seleção do upstream) sem mover a câmera:
-            // o escritório inteiro continua enquadrado.
-            if (msg.npc) os.selectAndFollow(CAST[msg.npc].id);
+          case 'moe:cast':
+            if (framed.current) spawn(msg.cast);
+            else pendingCast.current = msg.cast;
+            break;
+          case 'moe:focus': {
+            // Destaca o personagem (contorno de seleção do upstream) sem mover a câmera.
+            const id = idOf(msg.npc);
+            if (id !== undefined) os.selectAndFollow(id);
             else os.selectedAgentId = null;
             os.breakCameraFollow();
             break;
+          }
           case 'moe:speaking':
-            // Um personagem fala por vez: só ele fica "ativo" (animação de digitação na mesa).
+            // Um personagem fala por vez: só ele fica "ativo" (animação de trabalho na mesa).
             setSpeaking(msg.npc);
-            for (const npc of MOE_NPCS) {
-              deliver({ type: 'agentStatus', id: CAST[npc].id, status: npc === msg.npc ? 'active' : 'idle' });
+            for (const m of castRef.current) {
+              deliver({ type: 'agentStatus', id: m.id, status: m.key === msg.npc ? 'active' : 'idle' });
             }
             break;
-          case 'moe:awaiting':
-            if (msg.npc) os.showWaitingBubble(CAST[msg.npc].id, true);
+          case 'moe:awaiting': {
+            const id = idOf(msg.npc);
+            if (id !== undefined) os.showWaitingBubble(id, true);
             break;
+          }
           case 'moe:sound':
             setSoundEnabled(msg.enabled);
             break;
@@ -156,11 +179,11 @@ export function MoeOffice() {
             os.breakCameraFollow();
             os.selectedAgentId = null;
             panRef.current = frameOffice(containerRef.current).pan;
-            for (const npc of MOE_NPCS) deliver({ type: 'agentStatus', id: CAST[npc].id, status: 'idle' });
+            for (const m of castRef.current) deliver({ type: 'agentStatus', id: m.id, status: 'idle' });
             break;
         }
       }),
-    [],
+    [spawn],
   );
 
   // Rótulos de nome e papel acima de cada personagem (mesma projeção do upstream).
@@ -173,9 +196,9 @@ export function MoeOffice() {
       const os = getOfficeState();
       const rect = el.getBoundingClientRect();
       const project = overlayProjection(os.getLayout(), rect, zoom, panRef.current, window.devicePixelRatio || 1);
-      for (const npc of MOE_NPCS) {
-        const label = labelRefs.current[npc];
-        const ch = os.characters.get(CAST[npc].id);
+      for (const m of castRef.current) {
+        const label = labelRefs.current[m.key];
+        const ch = os.characters.get(m.id);
         if (!label) continue;
         if (!ch) {
           label.style.display = 'none';
@@ -190,15 +213,17 @@ export function MoeOffice() {
   }, [zoom]);
 
   const onCharacterClick = useCallback((agentId: number) => {
-    const npc = NPC_BY_ID.get(agentId);
+    const npc = castRef.current.find((m) => m.id === agentId)?.key;
     if (npc) postToHost({ source: 'moe-office', type: 'moe:npcClick', npc });
   }, []);
+
+  const description = cast.length ? ' com ' + cast.map((m) => m.name + ', ' + m.role).join('; ') : '';
 
   return (
     <div
       ref={containerRef}
       role="img"
-      aria-label="Escritório em pixel art com Maia, gestora; Léo, colega; e Nara, cliente interno."
+      aria-label={'Escritório em pixel art' + description + '.'}
       style={{ position: 'relative', width: '100%', height: '100%', overflow: 'hidden' }}
     >
       <OfficeCanvas
@@ -219,7 +244,7 @@ export function MoeOffice() {
         showAreas={false}
         activeAreaLabel={null}
       />
-      {MOE_NPCS.map((npc) => (
+      {cast.map(({ key: npc, name, role }) => (
         <div
           key={npc}
           ref={(el) => {
@@ -245,7 +270,7 @@ export function MoeOffice() {
             boxShadow: '2px 2px 0 #111',
           }}
         >
-          <strong style={{ fontFamily: 'inherit', fontSize: 'inherit' }}>{CAST[npc].nome}</strong> · {CAST[npc].papel}
+          <strong style={{ fontFamily: 'inherit', fontSize: 'inherit' }}>{name}</strong> · {role}
           {npc === speaking ? ' · falando' : ''}
         </div>
       ))}
