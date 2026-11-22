@@ -6,6 +6,8 @@ export default defineConfig({
   testDir: 'tests/e2e',
   timeout: 60_000,
   fullyParallel: true,
+  // Um único servidor local: poucos workers evitam saturação (geração de PDF é pesada).
+  workers: process.env.CI ? 2 : 3,
   reporter: [['list']],
   use: { baseURL: `http://localhost:${PORT}`, trace: 'retain-on-failure' },
   projects: [
