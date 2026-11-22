@@ -1,4 +1,6 @@
-# Resona
+# MOE
+
+**Site no ar:** https://pontosfortes.23.21.15.247.sslip.io · simulação por voz em [/moe](https://pontosfortes.23.21.15.247.sslip.io/moe) (entre como `candidata@fluxo-teste.dev`; a senha fica em `.runtime/infra/cliente-teste.txt`, gerada no deploy).
 
 Contratação por fit cultural. A empresa sobe a cultura, cria vagas com as soft skills e o perfil comportamental esperados, importa a planilha de candidatos e envia em lote uma entrevista por voz com a Lia. Ao fim de cada conversa, a IA gera a análise de fit (cultura, perfil, soft skills) com os diferenciais de cada pessoa, sempre com citações literais da entrevista, e a vaga mostra o ranking e a distribuição.
 
