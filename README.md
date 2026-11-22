@@ -2,7 +2,7 @@
 
 Conversa por voz para ajudar trabalhadores a reconhecer comportamentos e interesses profissionais a partir de histórias reais, com **citações verificáveis** e controle de compartilhamento pela própria pessoa.
 
-> **Estado atual: protótipo conceitual.** Os prompts originais estão documentados, o validador de evidências roda localmente, mas a entrevista com a Agora, a geração do relatório com LLM, a interface e os testes com usuários reais **ainda não foram integrados nem executados**.
+> **Estado atual: protótipo com interface (Fase 1).** Os prompts originais estão documentados e o validador roda localmente. A aplicação web (landing, entrevista em modo demonstração, relatório, PDF e fluxo de e-mail) está implementada e testada. A entrevista por voz com a Agora **ainda não foi ligada**; a análise por LLM, o armazenamento e o e-mail funcionam apenas quando configurados. Testes com usuários reais **não foram executados**. Detalhes em [`docs/frontend.md`](docs/frontend.md).
 
 ## Como funciona
 
@@ -37,13 +37,28 @@ flowchart TD
 | [`docs/plano-de-testes.md`](docs/plano-de-testes.md) | Critérios e roteiro dos cinco cenários |
 | [`src/validar-relatorio.js`](src/validar-relatorio.js) | Implementação inicial independente da Agora |
 | [`tests/validar-relatorio.test.js`](tests/validar-relatorio.test.js) | Testes automatizados do validador |
+| [`docs/frontend.md`](docs/frontend.md) | Aplicação web: rotas, arquitetura, design system, integrações, segurança |
+| [`docs/roadmap-fases-2-3.md`](docs/roadmap-fases-2-3.md) | Especificação de contas/onboarding e institucional/B2B |
+| [`docs/exemplos/`](docs/exemplos/) | PDF e e-mail de exemplo, com dados sintéticos |
+| [`docs/capturas/`](docs/capturas/) | Capturas das telas principais (desktop e celular) |
+
+## Aplicação web
+
+```bash
+npm install
+npm run dev      # http://localhost:3000
+```
+
+Sem variáveis de ambiente, tudo roda em **modo demonstração**, identificado na interface: conversa sintética, resposta sintética do analista e **validação real**. Veja `.env.example` para ativar análise por LLM, armazenamento e e-mail.
 
 ## Executar os testes
 
-Requer **Node.js 20+**; não há dependências externas.
+Requer **Node.js 20+**.
 
 ```bash
-npm test
+npm test               # 8 testes do validador (node --test) + testes Vitest
+npm run lint && npm run typecheck && npm run build
+npm run test:e2e       # Playwright; requer `npx playwright install chromium` e build
 ```
 
 ## Escopo do MVP
