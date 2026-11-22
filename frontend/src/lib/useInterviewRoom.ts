@@ -6,6 +6,7 @@ import type {
 } from "agora-rtc-sdk-ng";
 import { api, type InterviewState, type Join } from "./api";
 import { Transcripts, type Line } from "./transcripts";
+import { captureMicrophone, loadAgora, useAudioDevices } from "./audio";
 
 export type RoomState = "idle" | "connecting" | "live" | "dropped" | "ending" | "ended" | "error";
 
@@ -21,59 +22,8 @@ type Connection = {
   flushing: Promise<void> | null;
 };
 
-const MIC_ERRORS: Record<string, string> = {
-  PERMISSION_DENIED: "O navegador bloqueou o microfone. Permita o acesso nas configurações deste site e tente novamente.",
-  NotAllowedError: "O navegador bloqueou o microfone. Permita o acesso nas configurações deste site e tente novamente.",
-  DEVICE_NOT_FOUND: "Nenhum microfone foi encontrado. Conecte um dispositivo e tente novamente.",
-  NotFoundError: "Nenhum microfone foi encontrado. Conecte um dispositivo e tente novamente.",
-  NOT_READABLE: "O microfone pode estar ocupado. Feche outros apps que usam áudio e tente novamente.",
-  NotReadableError: "O microfone pode estar ocupado. Feche outros apps que usam áudio e tente novamente.",
-};
-
-function microphoneMessage(error: unknown) {
-  const code = error && typeof error === "object" && "code" in error ? String(error.code)
-    : error instanceof Error ? error.name : "";
-  return MIC_ERRORS[code] ?? "Não conseguimos abrir o microfone. Confira o dispositivo nas configurações de som e tente novamente.";
-}
-
-async function loadAgora() {
-  if (!window.isSecureContext || !navigator.mediaDevices?.getUserMedia) {
-    throw new Error("Abra o Pontos Fortes em HTTPS no Chrome, Safari, Edge ou Firefox para usar o microfone.");
-  }
-  const agora = (await import("agora-rtc-sdk-ng")).default;
-  if (!agora.checkSystemRequirements()) {
-    throw new Error("Este navegador não oferece o suporte de áudio necessário para a entrevista.");
-  }
-  agora.setLogLevel(3);
-  return agora;
-}
-
-async function captureMicrophone(agora: Awaited<ReturnType<typeof loadAgora>>, microphoneId?: string) {
-  try {
-    return await agora.createMicrophoneAudioTrack({ encoderConfig: "speech_standard", AEC: true, ANS: true, AGC: true,
-      ...(microphoneId ? { microphoneId } : {}) });
-  } catch (error) {
-    throw new Error(microphoneMessage(error));
-  }
-}
-
-export type AudioDevice = { id: string; label: string };
-const MIC_KEY = "resona.mic";
-const SPEAKER_KEY = "resona.speaker";
-
-function stored(key: string) {
-  try { return window.localStorage.getItem(key) ?? ""; } catch { return ""; }
-}
-function store(key: string, value: string) {
-  try { window.localStorage.setItem(key, value); } catch { /* preferência só desta sessão */ }
-}
-function toDevices(list: MediaDeviceInfo[], fallback: string): AudioDevice[] {
-  const seen = new Set<string>();
-  return list.filter((d) => d.deviceId && d.deviceId !== "communications" && !seen.has(d.deviceId) && seen.add(d.deviceId))
-    .map((d, n) => ({ id: d.deviceId, label: d.label || `${fallback} ${n + 1}` }));
-}
-/** Escolher a saída de áudio depende de setSinkId (Chrome, Edge; Firefox recente). */
-export const canPickSpeaker = () => typeof window !== "undefined" && "setSinkId" in HTMLMediaElement.prototype;
+export type { AudioDevice } from "./audio";
+export { canPickSpeaker } from "./audio";
 
 function channelQuery(channel: string) {
   return `?channel=${encodeURIComponent(channel)}`;
@@ -98,16 +48,8 @@ export function useInterviewRoom(interviewId: string) {
   const active = useRef<Connection | null>(null);
   const micOperation = useRef(false);
   const previewMic = useRef<IMicrophoneAudioTrack | null>(null);
-  const [mics, setMics] = useState<AudioDevice[]>([]);
-  const [speakers, setSpeakers] = useState<AudioDevice[]>([]);
-  const [micId, setMicId] = useState("");
-  const [speakerId, setSpeakerId] = useState("");
-  const [devicesBusy, setDevicesBusy] = useState(false);
-  const [deviceNotice, setDeviceNotice] = useState("");
-  const [testLevel, setTestLevel] = useState(0);
-  const [speakerTesting, setSpeakerTesting] = useState(false);
-  const micIdRef = useRef("");
-  const speakerIdRef = useRef("");
+  const devices = useAudioDevices(() => ({ mic: active.current?.mic ?? previewMic.current, speaker: active.current?.speaker ?? null }));
+  const { micIdRef, setTestLevel, route } = devices;
 
   const refresh = useCallback(async () => {
     const connection = active.current;
@@ -205,86 +147,9 @@ export function useInterviewRoom(interviewId: string) {
     });
   }, []);
 
-  const loadDevices = useCallback(async () => {
-    setDevicesBusy(true);
-    try {
-      const agora = await loadAgora();
-      const micList = toDevices(await agora.getMicrophones(), "Microfone");
-      let outList: AudioDevice[] = [];
-      if (canPickSpeaker()) {
-        try { outList = toDevices(await agora.getPlaybackDevices(), "Saída"); } catch { outList = []; }
-      }
-      if (!mounted.current) return;
-      setMics(micList); setSpeakers(outList);
-      const savedMic = micIdRef.current || stored(MIC_KEY);
-      const mic = micList.find((d) => d.id === savedMic)?.id ?? micList.find((d) => d.id === "default")?.id ?? micList[0]?.id ?? "";
-      const savedOut = speakerIdRef.current || stored(SPEAKER_KEY);
-      const out = outList.find((d) => d.id === savedOut)?.id ?? outList.find((d) => d.id === "default")?.id ?? outList[0]?.id ?? "";
-      micIdRef.current = mic; speakerIdRef.current = out;
-      setMicId(mic); setSpeakerId(out);
-      setDeviceNotice(micList.length ? "" : "Nenhum microfone encontrado. Conecte um e atualize a lista.");
-      agora.onMicrophoneChanged = () => { void loadDevices(); };
-      agora.onPlaybackDeviceChanged = () => { void loadDevices(); };
-    } catch (exc) {
-      if (mounted.current) {
-        const known = exc && typeof exc === "object" && "code" in exc && String(exc.code) in MIC_ERRORS;
-        setDeviceNotice(known || (exc instanceof Error && exc.name in MIC_ERRORS) ? microphoneMessage(exc)
-          : exc instanceof Error && !("code" in exc) ? exc.message : "Não foi possível listar os dispositivos de áudio.");
-      }
-    } finally {
-      if (mounted.current) setDevicesBusy(false);
-    }
-  }, []);
-
   async function chooseMic(id: string) {
-    micIdRef.current = id; setMicId(id); store(MIC_KEY, id); setDeviceNotice("");
-    const mic = active.current?.mic ?? previewMic.current;
-    if (!mic) return;
-    try { await mic.setDevice(id); setMicLost(false); setMicNotice(""); }
-    catch { setDeviceNotice("Não foi possível trocar o microfone. Tente outro dispositivo."); }
-  }
-
-  async function chooseSpeaker(id: string) {
-    speakerIdRef.current = id; setSpeakerId(id); store(SPEAKER_KEY, id); setDeviceNotice("");
-    const speaker = active.current?.speaker;
-    if (!speaker) return;
-    try { await speaker.setPlaybackDevice(id); }
-    catch { setDeviceNotice("Este navegador não deixou trocar a saída de áudio. Use o Chrome ou o Edge, ou troque nas configurações de som."); }
-  }
-
-  /** Toca um aviso curto na saída escolhida, para conferir se a voz da Lia vai sair no lugar certo. */
-  async function testSpeaker() {
-    if (speakerTesting) return;
-    setSpeakerTesting(true); setDeviceNotice("");
-    let ctx: AudioContext | null = null;
-    try {
-      ctx = new AudioContext();
-      const dest = ctx.createMediaStreamDestination();
-      const gain = ctx.createGain();
-      gain.connect(dest);
-      [523.25, 659.25, 783.99].forEach((freq, n) => {
-        const osc = ctx!.createOscillator();
-        osc.frequency.value = freq;
-        osc.connect(gain);
-        const t = ctx!.currentTime + n * 0.22;
-        gain.gain.setValueAtTime(0.0001, t);
-        gain.gain.exponentialRampToValueAtTime(0.25, t + 0.03);
-        gain.gain.exponentialRampToValueAtTime(0.0001, t + 0.2);
-        osc.start(t); osc.stop(t + 0.21);
-      });
-      const audio = new Audio();
-      audio.srcObject = dest.stream;
-      const sink = speakerIdRef.current;
-      if (sink && "setSinkId" in audio) await (audio as HTMLAudioElement & { setSinkId(id: string): Promise<void> }).setSinkId(sink);
-      await audio.play();
-      await new Promise((r) => setTimeout(r, 900));
-      audio.pause();
-    } catch {
-      setDeviceNotice("Não conseguimos tocar o som de teste nesta saída.");
-    } finally {
-      await ctx?.close().catch(() => undefined);
-      if (mounted.current) setSpeakerTesting(false);
-    }
+    await devices.chooseMic(id);
+    if (active.current?.mic) { setMicLost(false); setMicNotice(""); }
   }
 
   async function testMicrophone() {
@@ -302,7 +167,7 @@ export function useInterviewRoom(interviewId: string) {
       const track = mic;
       const sampler = window.setInterval(() => setTestLevel(Math.round(track.getVolumeLevel() * 10) / 10), 120);
       const hasSignal = await agora.checkAudioTrackIsActive(mic, 4000).finally(() => { window.clearInterval(sampler); setTestLevel(0); });
-      if (!micIdRef.current || !mics.length) void loadDevices();
+      if (!micIdRef.current || !devices.mics.length) void devices.load();
       if (mounted.current) {
         setMicNotice(hasSignal ? "Microfone funcionando." : "Não detectamos sua voz. Escolha outro microfone na lista e repita o teste.");
       }
@@ -323,15 +188,11 @@ export function useInterviewRoom(interviewId: string) {
       connection.speaker = track;
       setAudioBlocked(false);
       track.play();
-      if (speakerIdRef.current && canPickSpeaker()) {
-        await track.setPlaybackDevice(speakerIdRef.current).catch(() => {
-          if (active.current === connection) setDeviceNotice("A saída escolhida não respondeu; a voz da Lia está na saída padrão do sistema.");
-        });
-      }
+      await route(track, "A saída escolhida não respondeu; a voz da Lia está na saída padrão do sistema.");
     } catch {
       if (active.current === connection) setAudioBlocked(true);
     }
-  }, []);
+  }, [route]);
 
   async function playLia() {
     const connection = active.current;
@@ -528,7 +389,9 @@ export function useInterviewRoom(interviewId: string) {
   return {
     state, error, connectionMessage, reconnecting, lines, muted, micBusy, micLost, micNotice, micLevel,
     audioBlocked, agentSpeaking, server, testMicrophone, repairMicrophone, playLia, start, toggleMute, finish,
-    devices: { mics, speakers, micId, speakerId, busy: devicesBusy, notice: deviceNotice, testLevel, speakerTesting,
-      canPickSpeaker: canPickSpeaker(), load: loadDevices, chooseMic, chooseSpeaker, testSpeaker },
+    devices: { mics: devices.mics, speakers: devices.speakers, micId: devices.micId, speakerId: devices.speakerId,
+      busy: devices.busy, notice: devices.notice, testLevel: devices.testLevel, speakerTesting: devices.speakerTesting,
+      canPickSpeaker: devices.canPickSpeaker, load: devices.load, chooseMic, chooseSpeaker: devices.chooseSpeaker,
+      testSpeaker: devices.testSpeaker },
   };
 }

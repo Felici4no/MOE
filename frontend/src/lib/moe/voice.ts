@@ -1,27 +1,26 @@
 /**
- * Camada de voz do MOE (useMoeVoice) — estado desta sprint: SEM VOZ.
+ * Rótulo do modo de conversa do MOE.
  *
- * A integração Agora existente (frontend/src/lib/useInterviewRoom.ts +
- * backend/app/services/agora.py) depende do backend FastAPI com AGORA_APP_ID,
- * AGORA_APP_CERTIFICATE, LLM e um fornecedor de TTS. Nenhuma dessas credenciais
- * está configurada, e o Preview Vercel hospeda apenas o frontend. Por isso o
- * modo disponível é texto, identificado como `DEMO SEM VOZ`.
- *
- * Perfis abstratos por personagem; IDs reais de voz NÃO são inventados aqui:
- * devem vir da configuração confirmada do fornecedor de TTS (backend `voice()`).
+ * - Cenários da empresa (`/moe?sessao=`): voz pela Agora Conversational AI quando o servidor tem
+ *   AGORA_APP_ID/AGORA_APP_CERTIFICATE e PF_TOOLS_URL (ver useMoeVoice e backend/app/moe/voice.py);
+ *   cada personagem fala com a voz do catálogo do servidor (`voice_id`) ou a voz padrão.
+ * - Demonstração local (`/moe` sem parâmetros): roda só no navegador, sem servidor, por isso por texto.
+ * IDs de voz nunca são inventados aqui: vêm do catálogo do backend (domain.voice_catalog).
  */
-import type { MoeNpc } from "@moe/protocol";
-
-export type VoiceMode = "texto";
-
-export const VOICE_PROFILES: Record<MoeNpc, { perfil: string; vozReal: null }> = {
-  maia: { perfil: "serena", vozReal: null },
-  leo: { perfil: "dinâmica", vozReal: null },
-  nara: { perfil: "objetiva", vozReal: null },
-};
+import type { MoeVoice } from "./useMoeVoice";
 
 export const VOICE_STATUS = {
-  mode: "texto" as VoiceMode,
-  label: "DEMO SEM VOZ",
-  detalhe: "Voz por personagem ainda não integrada (Agora sem credenciais neste ambiente). Converse por texto.",
+  label: "Por texto",
+  detalhe: "Esta demonstração roda só no navegador. A conversa por voz fica nos cenários publicados pela empresa.",
 };
+
+export function voiceBadge(voz?: MoeVoice): { label: string; detalhe: string; on: boolean } {
+  if (!voz) return { ...VOICE_STATUS, on: false };
+  switch (voz.state) {
+    case "live": return { label: "Por voz", detalhe: "Os personagens falam e ouvem pela Agora. Você pode voltar ao texto a qualquer momento.", on: true };
+    case "connecting": return { label: "Ligando a voz…", detalhe: "Abrindo o microfone e chamando o personagem.", on: true };
+    case "checking": return { label: "Verificando voz…", detalhe: "Conferindo se a voz está disponível neste servidor.", on: false };
+    case "unavailable": return { label: "Por texto", detalhe: voz.reason || "A voz não está disponível agora.", on: false };
+    default: return { label: "Por texto", detalhe: voz.reason || "Voz disponível: ative quando quiser.", on: false };
+  }
+}

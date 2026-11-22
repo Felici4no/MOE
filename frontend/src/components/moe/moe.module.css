@@ -141,3 +141,23 @@
   .scenarioBar .steps { width: 100%; }
   .steps li + li::before { width: 14px; margin: 0 6px; }
 }
+
+/* Voz (Agora) */
+.badge[data-voice] { color: var(--accent-ink, var(--ink)); background: var(--accent-soft, var(--surface)); }
+.voiceSetup { display: grid; gap: var(--space-3, 12px); padding: var(--space-4, 16px); border: 1px solid var(--line); border-radius: var(--radius-lg, 12px); }
+.listen { display: flex; align-items: center; gap: 10px; font-size: 14px; color: var(--ink-2); }
+.listen meter { width: 96px; height: 6px; flex: none; }
+.listen[data-on] { color: var(--ink); }
+.voiceOnly { display: flex; align-items: center; gap: 12px; font-size: 18px; color: var(--ink-2); margin: 8px 0 4px; }
+.voiceOnly[data-on] { color: var(--ink); }
+.bars { display: inline-flex; align-items: end; gap: 3px; height: 22px; }
+.bars i { width: 4px; height: 6px; border-radius: 2px; background: var(--line-strong); }
+.voiceOnly[data-on] .bars i { background: var(--accent); animation: bar .9s ease-in-out infinite; }
+.voiceOnly[data-on] .bars i:nth-child(2) { animation-delay: .15s; }
+.voiceOnly[data-on] .bars i:nth-child(3) { animation-delay: .3s; }
+.voiceOnly[data-on] .bars i:nth-child(4) { animation-delay: .45s; }
+@keyframes bar { 0%, 100% { height: 6px; } 50% { height: 22px; } }
+@media (prefers-reduced-motion: reduce) { .voiceOnly[data-on] .bars i { animation: none; height: 14px; } }
+.showText { justify-self: start; }
+.outPick { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-size: 14px; }
+.outPick select { min-height: 36px; max-width: 260px; font-size: 14px; }

@@ -3,16 +3,20 @@
  * Pixel Agents embutido (iframe de mesma origem).
  *
  * Sequência: escritório → `moe:layout` (pronto para receber elenco) → host → `moe:cast`
- * → escritório cria os personagens → `moe:ready`. Depois: focus/speaking/awaiting/sound/reset.
+ * → escritório cria os personagens → `moe:ready`. Depois: focus/line/speaking/awaiting/sound/reset.
+ * `moe:line` mostra a fala do personagem num balão sobre ele; `moe:speaking` liga a animação de fala
+ * (por voz, segue o áudio real do agente; por texto, o tempo de leitura).
  *
  * Regras:
- * - cruzam a fronteira só chaves de personagem, nome/papel/aparência configurados pela empresa
- *   e flags; nunca respostas do participante nem credenciais;
+ * - cruzam a fronteira chaves de personagem, nome/papel/aparência configurados pela empresa, flags
+ *   e a fala atual do personagem (já visível na tela do host; pode citar a pessoa quando ele lembra
+ *   o que ela disse). Nunca credenciais; o escritório não guarda nem devolve falas;
  * - ambos os lados validam `origin`, `source` e o esquema antes de agir.
  *
  * Fonte única: importado pelo webview (build Vite) e pelo frontend (alias @moe/protocol).
  */
 export const MAX_CAST = 4;
+export const MAX_LINE = 600;
 export const LOOK_MAX = 5;
 
 /** Chave de personagem: slug curto (ex.: "maia") ou id de persona (32 hex). */
@@ -23,6 +27,7 @@ export type HostToOffice =
   | { source: 'moe-host'; type: 'moe:cast'; cast: CastMember[] }
   | { source: 'moe-host'; type: 'moe:focus'; npc: MoeNpc | null }
   | { source: 'moe-host'; type: 'moe:speaking'; npc: MoeNpc | null }
+  | { source: 'moe-host'; type: 'moe:line'; npc: MoeNpc | null; text: string }
   | { source: 'moe-host'; type: 'moe:awaiting'; npc: MoeNpc | null }
   | { source: 'moe-host'; type: 'moe:sound'; enabled: boolean }
   | { source: 'moe-host'; type: 'moe:reset' };
@@ -65,6 +70,10 @@ export function parseHostMessage(d: unknown): HostToOffice | null {
     case 'moe:speaking':
     case 'moe:awaiting':
       return isNpcOrNull(d.npc) ? { source: 'moe-host', type: d.type, npc: d.npc } : null;
+    case 'moe:line':
+      return isNpcOrNull(d.npc) && typeof d.text === 'string' && d.text.length <= MAX_LINE
+        ? { source: 'moe-host', type: 'moe:line', npc: d.npc, text: d.text }
+        : null;
     case 'moe:sound':
       return typeof d.enabled === 'boolean' ? { source: 'moe-host', type: 'moe:sound', enabled: d.enabled } : null;
     case 'moe:reset':

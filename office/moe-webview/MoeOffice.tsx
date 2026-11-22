@@ -79,6 +79,13 @@ export function MoeOffice() {
   const panRef = useRef({ x: 0, y: 0 });
   const [zoom, setZoom] = useState(ZOOM_MIN);
   const [speaking, setSpeaking] = useState<MoeNpc | null>(null);
+  const [line, setLine] = useState<{ npc: MoeNpc; text: string } | null>(null);
+  const [shown, setShown] = useState(0);
+  const balloonRef = useRef<HTMLDivElement>(null);
+  const lineRef = useRef<{ npc: MoeNpc; text: string } | null>(null);
+  useEffect(() => {
+    lineRef.current = line;
+  }, [line]);
   const [cast, setCast] = useState<Spawned[]>([]);
   const castRef = useRef<Spawned[]>([]);
   const pendingCast = useRef<CastMember[] | null>(null);
@@ -166,6 +173,10 @@ export function MoeOffice() {
               deliver({ type: 'agentStatus', id: m.id, status: m.key === msg.npc ? 'active' : 'idle' });
             }
             break;
+          case 'moe:line':
+            setLine(msg.npc && msg.text.trim() ? { npc: msg.npc, text: msg.text.trim() } : null);
+            setShown(0);
+            break;
           case 'moe:awaiting': {
             const id = idOf(msg.npc);
             if (id !== undefined) os.showWaitingBubble(id, true);
@@ -176,6 +187,7 @@ export function MoeOffice() {
             break;
           case 'moe:reset':
             setSpeaking(null);
+            setLine(null);
             os.breakCameraFollow();
             os.selectedAgentId = null;
             panRef.current = frameOffice(containerRef.current).pan;
@@ -185,6 +197,17 @@ export function MoeOffice() {
       }),
     [spawn],
   );
+
+  // Balão de fala: o texto aparece no ritmo da voz enquanto o personagem fala; ao calar, fica inteiro.
+  useEffect(() => {
+    if (!line) return;
+    if (speaking !== line.npc) {
+      setShown(line.text.length);
+      return;
+    }
+    const t = window.setInterval(() => setShown((n) => Math.min(line.text.length, n + 1)), 60);
+    return () => window.clearInterval(t);
+  }, [line, speaking]);
 
   // Rótulos de nome e papel acima de cada personagem (mesma projeção do upstream).
   useEffect(() => {
@@ -205,7 +228,26 @@ export function MoeOffice() {
           continue;
         }
         label.style.display = 'block';
-        label.style.transform = `translate(${Math.round(project.toScreenX(ch.x))}px, ${Math.round(project.toScreenY(ch.y - 30))}px) translate(-50%, -100%)`;
+        const lhalf = label.offsetWidth / 2;
+        const lx = Math.min(rect.width - lhalf - 4, Math.max(lhalf + 4, project.toScreenX(ch.x)));
+        label.style.transform = `translate(${Math.round(lx)}px, ${Math.round(project.toScreenY(ch.y - 30))}px) translate(-50%, -100%)`;
+      }
+      const balloon = balloonRef.current;
+      const current = lineRef.current;
+      const who = current && castRef.current.find((m) => m.key === current.npc);
+      const ch = who ? os.characters.get(who.id) : undefined;
+      if (balloon) {
+        if (!ch) balloon.style.display = 'none';
+        else {
+          balloon.style.display = 'block';
+          // Acima do rótulo, sem sair do quadro.
+          const half = balloon.offsetWidth / 2;
+          const x = Math.min(rect.width - half - 6, Math.max(half + 6, project.toScreenX(ch.x)));
+          const y = Math.max(balloon.offsetHeight + 6, project.toScreenY(ch.y - 30) - 30);
+          balloon.style.transform = `translate(${Math.round(x)}px, ${Math.round(y)}px) translate(-50%, -100%)`;
+          const tail = balloon.querySelector<HTMLElement>('[data-tail]');
+          if (tail) tail.style.left = `${Math.round(project.toScreenX(ch.x) - x + half)}px`;
+        }
       }
     };
     raf = requestAnimationFrame(tick);
@@ -274,6 +316,50 @@ export function MoeOffice() {
           {npc === speaking ? ' · falando' : ''}
         </div>
       ))}
+      {line && (
+        <div
+          ref={balloonRef}
+          data-moe-balloon={line.npc}
+          data-talking={speaking === line.npc || undefined}
+          aria-hidden="true"
+          style={{
+            position: 'absolute',
+            left: 0,
+            top: 0,
+            display: 'none',
+            pointerEvents: 'none',
+            width: 'max-content',
+            maxWidth: 'min(320px, 70%)',
+            padding: '6px 9px',
+            border: '2px solid #111',
+            background: '#fff',
+            color: '#111',
+            fontFamily: 'ui-monospace, monospace',
+            fontSize: 12.5,
+            lineHeight: 1.35,
+            zIndex: 3,
+            boxShadow: '3px 3px 0 #111',
+            opacity: speaking === line.npc ? 1 : 0.92,
+          }}
+        >
+          {line.text.slice(0, Math.max(shown, 1))}
+          {speaking === line.npc && <span className="moe-talk" aria-hidden="true"> ▮</span>}
+          <span
+            data-tail
+            style={{
+              position: 'absolute',
+              bottom: -7,
+              width: 10,
+              height: 10,
+              marginLeft: -5,
+              background: '#fff',
+              borderRight: '2px solid #111',
+              borderBottom: '2px solid #111',
+              transform: 'rotate(45deg)',
+            }}
+          />
+        </div>
+      )}
     </div>
   );
 }

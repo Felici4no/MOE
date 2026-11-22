@@ -3,3 +3,8 @@
    — ex.: OfficeCanvas `w-full h-full` — precisam ser declaradas como fonte). */
 @import '../src/index.css';
 @source '../src';
+
+/* Cursor de fala no balão enquanto o personagem fala. */
+.moe-talk { animation: moe-talk 0.5s steps(2, start) infinite; }
+@keyframes moe-talk { to { visibility: hidden; } }
+@media (prefers-reduced-motion: reduce) { .moe-talk { animation: none; } }

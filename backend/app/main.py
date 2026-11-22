@@ -10,7 +10,8 @@ from fastapi.responses import JSONResponse
 from app.api.routes import api, tools
 from app.core.config import Settings, get_settings
 from app.core.db import Database
-from app.moe.routes import router as moe_router
+from app.moe.routes import router as moe_router, tools as moe_tools
+from app.moe.voice import MoeVoiceRooms
 from app.services.errors import ServiceError
 from app.services.interviews import LiveAgents
 
@@ -26,6 +27,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     database = Database(settings.database_url)
     database.create_all()
     live = LiveAgents()
+    moe_voice = MoeVoiceRooms()
 
     @asynccontextmanager
     async def lifespan(_):
@@ -38,14 +40,20 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                         await InterviewService(session, settings, live).reap()
                 except Exception:
                     logging.getLogger(__name__).exception("Falha ao fechar tentativas sem sinal")
+                try:
+                    await moe_voice.reap()
+                except Exception:
+                    logging.getLogger(__name__).exception("Falha ao fechar salas de voz do MOE")
         task = asyncio.create_task(reaper())
         yield
         task.cancel()
         await live.stop_all()
+        await moe_voice.stop_all()
 
     app = FastAPI(title="Pontos Fortes API", version="0.1.0", lifespan=lifespan,
                   docs_url=None if settings.env == "prod" else "/api/docs", openapi_url=None if settings.env == "prod" else "/api/openapi.json")
     app.state.settings, app.state.db, app.state.live = settings, database, live
+    app.state.moe_voice = moe_voice
     public = urlsplit(settings.public_url)
     allowed = {f"{public.scheme}://{public.netloc}", "http://localhost:3000", "http://127.0.0.1:3000"} \
         if settings.env != "prod" else {f"{public.scheme}://{public.netloc}"}
@@ -76,6 +84,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(api)
     app.include_router(tools)
     app.include_router(moe_router)
+    app.include_router(moe_tools)
     return app
 
 

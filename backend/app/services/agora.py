@@ -158,17 +158,29 @@ def off_script_tool(settings: Settings, interview_id: str, secret: str) -> dict:
                    "body": {k: "{{args." + k + "}}" for k in properties}}}
 
 
-def voice(settings: Settings):
-    """Voz da Lia. Sem language_boost o MiniMax pode detectar outro idioma e trocar o sotaque."""
+OPENAI_VOICES = ("alloy", "echo", "fable", "onyx", "nova", "shimmer")
+
+
+def voice(settings: Settings, voice_id: str | None = None):
+    """Voz da Lia (ou de um personagem do MOE, quando `voice_id` vem do catálogo já validado).
+    Sem language_boost o MiniMax pode detectar outro idioma e trocar o sotaque."""
+    chosen = voice_id or settings.tts_voice
     if settings.tts_vendor == "microsoft" and settings.azure_speech_key.get_secret_value():
-        name = settings.tts_voice if settings.tts_voice.startswith("pt-BR-") else "pt-BR-FranciscaNeural"
+        name = chosen if chosen.startswith("pt-BR-") else "pt-BR-FranciscaNeural"
         return MicrosoftTTS(key=settings.azure_speech_key.get_secret_value(), region=settings.azure_speech_region,
                             voice_name=name, speed=settings.tts_speed)
     if settings.tts_vendor == "openai":
-        return OpenAITTS(model="tts-1", voice=settings.tts_voice if settings.tts_voice in
-                         ("alloy", "echo", "fable", "onyx", "nova", "shimmer") else "nova", speed=settings.tts_speed)
-    return MiniMaxTTS(model=settings.tts_model, voice_id=settings.tts_voice, speed=settings.tts_speed,
+        return OpenAITTS(model="tts-1", voice=chosen if chosen in OPENAI_VOICES else "nova", speed=settings.tts_speed)
+    return MiniMaxTTS(model=settings.tts_model, voice_id=chosen, speed=settings.tts_speed,
                       language_boost=settings.tts_language_boost or None)
+
+
+# Turnos do participante no MOE: a Agora detecta o fim da fala e transcreve; quem decide a próxima
+# fala é a mente do personagem no servidor. Pausa de 1,2 s para não cortar quem pensa em voz alta.
+NPC_TURN_DETECTION = {"language": "pt-PT", "config": {
+    "speech_threshold": .6,
+    "start_of_speech": {"mode": "vad", "vad_config": {"interrupt_duration_ms": 400, "prefix_padding_ms": 300}},
+    "end_of_speech": {"mode": "vad", "vad_config": {"silence_duration_ms": 1200}}}}
 
 
 class AgentHandle:
@@ -205,6 +217,28 @@ class AgentHandle:
             agent = agent.with_tools(True)
         self.session = agent.create_async_session(channel=channel, agent_uid=str(agent_uid), remote_uids=[str(user_uid)],
                                                   enable_string_uid=False, idle_timeout=120, expires_in=2700)
+        try:
+            await self.session.start()
+        except BaseException:
+            await self.close()
+            raise
+
+    async def start_npc(self, settings: Settings, *, channel: str, agent_uid: int, user_uid: int, brief: dict,
+                        greeting: str, llm_url: str, secret: str) -> None:
+        """Personagem do MOE: ouve (ASR + detecção de turno da Agora) e fala com a própria voz.
+        O LLM do agente é um endpoint nosso que não responde nada; as falas saem por `say`,
+        escritas pela mente do personagem (memória e aprofundamento) no servidor."""
+        self.http = httpx.AsyncClient(timeout=15)
+        client = AsyncAgora(area=Area.US, app_id=settings.agora_app_id.get_secret_value(),
+                            app_certificate=settings.agora_app_certificate.get_secret_value(), httpx_client=self.http)
+        agent = (Agent(client=client, turn_detection=NPC_TURN_DETECTION, parameters={"data_channel": "datastream"})
+                 .with_stt(DeepgramSTT(model="nova-3", language="pt-BR", smart_format=True, punctuation=True))
+                 .with_llm(OpenAI(model="moe-mind", base_url=llm_url, api_key=secret,
+                                  system_messages=[{"role": "system", "content": brief["system_prompt"]}],
+                                  greeting_message=greeting, max_history=20))
+                 .with_tts(voice(settings, brief["voice"]["voice_id"])))
+        self.session = agent.create_async_session(channel=channel, agent_uid=str(agent_uid), remote_uids=[str(user_uid)],
+                                                  enable_string_uid=False, idle_timeout=60, expires_in=1800)
         try:
             await self.session.start()
         except BaseException:

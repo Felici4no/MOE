@@ -1,11 +1,18 @@
-from fastapi import APIRouter, Response
+from fastapi import APIRouter, Request, Response
+from fastapi.concurrency import run_in_threadpool
 
 from app.api.deps import DbDep, SettingsDep, UserDep
 
 from .schemas import AnswerIn, PersonaIn, PersonaOut, PointIn, PointOut, ScenarioIn, ScenarioOut, ShareIn, StartIn
 from .service import MoeAdmin, MoePlayer
+from .voice import MoeVoice, require_room, silent_completion
 
 router = APIRouter(prefix="/api/v1/moe", tags=["moe"])
+tools = APIRouter(prefix="/api/tools/moe", tags=["moe"])
+
+
+def _voice(request: Request) -> MoeVoice:
+    return MoeVoice(request.app.state.settings, request.app.state.moe_voice)
 
 
 # --- Empresa: configuração ------------------------------------------------------
@@ -125,8 +132,43 @@ def session(sid: str, user: UserDep, db: DbDep, cfg: SettingsDep):
 
 
 @router.post("/play/sessions/{sid}/answers")
-def answer(sid: str, data: AnswerIn, user: UserDep, db: DbDep, cfg: SettingsDep):
-    return MoePlayer(db, cfg, user).answer(sid, data.scene_id, data.text, data.turn)
+async def answer(sid: str, data: AnswerIn, request: Request, user: UserDep, db: DbDep, cfg: SettingsDep):
+    """Mesma resposta por texto ou por voz. Com voz ativa, a próxima fala sai pela voz do personagem."""
+    player = MoePlayer(db, cfg, user)
+    view = await run_in_threadpool(player.answer, sid, data.scene_id, data.text, data.turn)
+    voice = await _voice(request).after_answer(player._mine(sid))
+    return {**view, "voice": voice} if voice is not None else view
+
+
+# --- Voz (Agora) --------------------------------------------------------------------
+@router.get("/play/sessions/{sid}/voice")
+def voice_status(sid: str, request: Request, user: UserDep, db: DbDep, cfg: SettingsDep):
+    MoePlayer(db, cfg, user)._mine(sid)
+    return _voice(request).status(sid)
+
+
+@router.post("/play/sessions/{sid}/voice/prepare")
+async def voice_prepare(sid: str, request: Request, user: UserDep, db: DbDep, cfg: SettingsDep):
+    return await _voice(request).prepare(MoePlayer(db, cfg, user)._mine(sid))
+
+
+@router.post("/play/sessions/{sid}/voice/join")
+async def voice_join(sid: str, channel: str, request: Request, user: UserDep, db: DbDep, cfg: SettingsDep):
+    return await _voice(request).join(MoePlayer(db, cfg, user)._mine(sid), channel)
+
+
+@router.post("/play/sessions/{sid}/voice/leave")
+async def voice_leave(sid: str, request: Request, user: UserDep, db: DbDep, cfg: SettingsDep, channel: str | None = None):
+    MoePlayer(db, cfg, user)._mine(sid)
+    return await _voice(request).leave(sid, channel)
+
+
+@tools.post("/{sid}/chat/completions")
+async def npc_listens(sid: str, request: Request):
+    """LLM do agente de voz: chamado pela Agora quando a pessoa termina de falar. Não responde nada."""
+    require_room(request.app.state.moe_voice, sid, request.headers.get("authorization", ""))
+    media, body = silent_completion(await request.body())
+    return Response(content=body, media_type=media)
 
 
 @router.post("/play/sessions/{sid}/finish")

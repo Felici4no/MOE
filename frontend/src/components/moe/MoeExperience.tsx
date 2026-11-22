@@ -8,7 +8,9 @@ import { api, ApiError, type Axis, type Fit } from "@/lib/api";
 import type { MoeSession } from "@/lib/moe/api";
 import { demoScript, sessionScript, POSTURA, type Script } from "@/lib/moe/script";
 import { useOfficeBridge } from "@/lib/moe/useOfficeBridge";
-import { VOICE_STATUS } from "@/lib/moe/voice";
+import { voiceBadge } from "@/lib/moe/voice";
+import { AUTO_SEND_MS, useMoeVoice, type MoeVoice, type VoiceStatus } from "@/lib/moe/useMoeVoice";
+import { AudioPanel } from "@/app/app/entrevista/[id]/AudioPanel";
 import { Wordmark } from "@/components/Wordmark";
 import { Tip } from "@/components/Tip";
 import s from "./moe.module.css";
@@ -68,6 +70,7 @@ function CompanyRun({ cenario, sessao: sessaoId }: { cenario: string | null; ses
   const [error, setError] = useState<{ status: number; message: string } | null>(null);
   const [entered, setEntered] = useState(false);
   const started = useRef(false);
+  const voz = useMoeVoice(session?.id ?? sessaoId);
 
   const begin = useCallback(async () => {
     setError(null);
@@ -106,14 +109,19 @@ function CompanyRun({ cenario, sessao: sessaoId }: { cenario: string | null; ses
 
   const script = sessionScript(session);
   if (session.status === "finished") return <ResultadoEmpresa script={script} session={session} onChange={setSession} />;
-  if (!entered && session.answers.length === 0) return <Entrada script={script} onEntrar={() => setEntered(true)} />;
+  if (!entered && session.answers.length === 0) {
+    return <Entrada script={script} voz={voz} onEntrar={(comVoz) => { setEntered(true); if (comVoz) void voz.start(); }} />;
+  }
 
   return (
-    <Escritorio script={script} respostas={session.answers.map((a) => a.quote)}
+    <Escritorio script={script} respostas={session.answers.map((a) => a.quote)} voz={voz}
       onAnswer={async (texto) => {
         const cur = session.current;
         if (!cur) return;
-        setSession(await api<MoeSession>(`/moe/play/sessions/${session.id}/answers`, { body: { ...cur, text: texto } }));
+        const { voice, ...next } = await api<MoeSession & { voice?: VoiceStatus }>(
+          `/moe/play/sessions/${session.id}/answers`, { body: { ...cur, text: texto } });
+        setSession(next);
+        voz.apply(voice);
       }}
       onConcluir={async () => { setSession(await api<MoeSession>(`/moe/play/sessions/${session.id}/finish`, { method: "POST" })); }} />
   );
@@ -149,13 +157,15 @@ function Etapas({ etapas, atual }: { etapas: string[]; atual: string | null | "i
   );
 }
 
-function Entrada({ script, onEntrar }: { script: Script; onEntrar: () => void }) {
+function Entrada({ script, onEntrar, voz }: { script: Script; onEntrar: (comVoz: boolean) => void; voz?: MoeVoice }) {
   const n = script.cast.length;
+  const vozPossivel = !!voz && voz.state !== "unavailable" && voz.state !== "checking";
+  const badge = voiceBadge(voz);
   return (
     <main className={s.entry} id="conteudo">
       <header className={s.topbar}>
         <Marca />
-        <span className={s.badge} title={VOICE_STATUS.detalhe}>Por texto</span>
+        <span className={s.badge} data-voice={badge.on || undefined} title={badge.detalhe}>{badge.label}</span>
       </header>
       <section className={s.entryBody} aria-labelledby="moe-title">
         <span className="eyebrow">{script.vaga ? `Vaga · ${script.vaga}` : script.demo ? `Demonstração · ${script.titulo}` : `Cenário da empresa · ${script.titulo}`}</span>
@@ -189,8 +199,23 @@ function Entrada({ script, onEntrar }: { script: Script; onEntrar: () => void })
             ))}
           </ul>
         )}
+        {vozPossivel && (
+          <section className={s.voiceSetup} aria-labelledby="voz-title">
+            <h2 id="voz-title" className={s.sectionTitle}>Conversa por voz
+              <Tip>Cada personagem fala com a própria voz e escuta você pelo microfone (Agora). O que você disser vira texto e entra na conversa como uma resposta escrita. Dá para voltar ao texto a qualquer momento.</Tip></h2>
+            <AudioPanel devices={voz.devices} micBusy={false} />
+          </section>
+        )}
+        {voz?.state === "unavailable" && voz.reason && <p className={s.small} role="status">{voz.reason}</p>}
         <div className={s.actions}>
-          <button type="button" className="btn btn-primary btn-lg" onClick={onEntrar}>Entrar no escritório</button>
+          {vozPossivel ? (
+            <>
+              <button type="button" className="btn btn-primary btn-lg" onClick={() => onEntrar(true)}>Entrar e conversar por voz</button>
+              <button type="button" className="btn btn-lg" onClick={() => onEntrar(false)}>Entrar por texto</button>
+            </>
+          ) : (
+            <button type="button" className="btn btn-primary btn-lg" disabled={voz?.state === "checking"} onClick={() => onEntrar(false)}>Entrar no escritório</button>
+          )}
           <span className={s.small}>Cerca de {Math.max(2, Math.round(script.total * 0.8))} minutos
             <Tip>{script.demo
               ? "Suas respostas ficam só neste navegador e não são enviadas a nenhum servidor."
@@ -204,12 +229,13 @@ function Entrada({ script, onEntrar }: { script: Script; onEntrar: () => void })
   );
 }
 
-function Escritorio({ script, respostas, onAnswer, onRecomecar, onConcluir }: {
+function Escritorio({ script, respostas, onAnswer, onRecomecar, onConcluir, voz }: {
   script: Script;
   respostas: string[];
   onAnswer: (texto: string) => Promise<void>;
   onRecomecar?: () => void;
   onConcluir: () => Promise<void>;
+  voz?: MoeVoice;
 }) {
   const indice = respostas.length;
   const cena = script.cenas[indice] ?? null;
@@ -220,6 +246,14 @@ function Escritorio({ script, respostas, onAnswer, onRecomecar, onConcluir }: {
   const [mudo, setMudo] = useState(false);
   const [semEscritorio, setSemEscritorio] = useState(false);
   const [enviando, setEnviando] = useState(false);
+  const [editado, setEditado] = useState(false);
+  const [audioAberto, setAudioAberto] = useState(false);
+  const porVoz = !!voz?.live;
+  // Por voz, só fala: o texto fica oculto (dá para mostrar, por acessibilidade).
+  const [mostrarTexto, setMostrarTexto] = useState(false);
+  const oculto = porVoz && !mostrarTexto;
+  const { load: carregarDispositivos } = voz?.devices ?? {};
+  useEffect(() => { if (porVoz) void carregarDispositivos?.(); }, [porVoz, carregarDispositivos]);
   const inputId = useId();
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const logEndRef = useRef<HTMLLIElement>(null);
@@ -252,37 +286,93 @@ function Escritorio({ script, respostas, onAnswer, onRecomecar, onConcluir }: {
   useEffect(() => {
     if (!ambientePronto) return;
     if (!cena) {
-      if (fim) { setFase("concluida"); send({ type: "moe:speaking", npc: null }); send({ type: "moe:focus", npc: null }); }
+      if (fim) { setFase("concluida"); send({ type: "moe:speaking", npc: null }); send({ type: "moe:line", npc: null, text: "" }); send({ type: "moe:focus", npc: null }); }
       return;
     }
+    aberto.current = "";
     setFase("respondendo");
     send({ type: "moe:focus", npc: cena.npc });
-    send({ type: "moe:speaking", npc: cena.npc });
-    const ms = prefersReducedMotion() ? 0 : Math.min(2600, 700 + cena.fala.split(" ").length * 50);
-    const t = window.setTimeout(() => {
-      setFase("ouvindo");
-      send({ type: "moe:speaking", npc: null });
-      send({ type: "moe:awaiting", npc: cena.npc });
-      inputRef.current?.focus({ preventScroll: true });
-    }, ms);
+    // Por voz, a boca do boneco segue o áudio do agente (efeito abaixo).
+    send({ type: "moe:speaking", npc: porVoz && !falando.current ? null : cena.npc });
+    voz?.listen(false);
+    setEditado(false);
+    // Por voz, a vez da pessoa começa quando o áudio do personagem termina (efeito abaixo);
+    // este relógio só cobre uma fala que não chegou. Por texto, uma pausa de leitura.
+    const palavras = cena.fala.split(" ").length;
+    const ms = porVoz ? Math.max(9000, 6000 + palavras * 450) : prefersReducedMotion() ? 0 : Math.min(2600, 700 + palavras * 50);
+    const t = window.setTimeout(abrirEscuta, ms);
     return () => window.clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [ambientePronto, chave, send]);
+  }, [ambientePronto, chave, send, porVoz]);
+
+  // Balão no escritório: a fala, ou só "…" quando a conversa é apenas por voz.
+  useEffect(() => {
+    if (ambientePronto && cena) send({ type: "moe:line", npc: cena.npc, text: oculto ? "…" : cena.fala.slice(0, 600) });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ambientePronto, chave, oculto, send]);
+
+  // Uma voz por vez: o personagem termina de falar e só então o microfone passa a valer.
+  const falou = useRef("");
+  const aberto = useRef("");
+  const agentSpeaking = !!voz?.agentSpeaking;
+  const falando = useRef(false);
+  useEffect(() => { falando.current = agentSpeaking; }, [agentSpeaking]);
+  useEffect(() => {
+    if (!porVoz || fase !== "respondendo" || !cena) return;
+    send({ type: "moe:speaking", npc: agentSpeaking ? cena.npc : null });
+    if (agentSpeaking) { falou.current = chave; return; }
+    if (falou.current !== chave) return;
+    const t = window.setTimeout(abrirEscuta, 700);
+    return () => window.clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [porVoz, fase, chave, agentSpeaking]);
+
+  function abrirEscuta() {
+    // Uma vez por fala; o relógio de reserva não corta o personagem que ainda está falando.
+    if (!cena || aberto.current === chave || (voz?.live && falando.current)) return;
+    aberto.current = chave;
+    setFase("ouvindo");
+    send({ type: "moe:speaking", npc: null });
+    send({ type: "moe:awaiting", npc: cena.npc });
+    if (voz?.live) voz.listen(true);
+    else inputRef.current?.focus({ preventScroll: true });
+  }
+
+  // O que a pessoa diz aparece na caixa de resposta (dá para corrigir antes de enviar).
+  const ouvido = voz ? [voz.heard, voz.interim].filter(Boolean).join(" ") : "";
+  useEffect(() => {
+    if (porVoz && fase === "ouvindo" && !editado) setTexto(ouvido);
+  }, [porVoz, fase, editado, ouvido]);
+
+  // Quando a pessoa para de falar, a resposta vai sozinha, como o botão Responder.
+  const heard = voz?.heard ?? "", interim = voz?.interim ?? "", lastHeardAt = voz?.lastHeardAt ?? 0;
+  useEffect(() => {
+    if (!porVoz || fase !== "ouvindo" || editado || enviando || !heard || interim) return;
+    const t = window.setTimeout(() => { void enviarTexto(heard); }, Math.max(300, AUTO_SEND_MS - (Date.now() - lastHeardAt)));
+    return () => window.clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [porVoz, fase, editado, enviando, heard, interim, lastHeardAt]);
 
   useEffect(() => { send({ type: "moe:sound", enabled: !mudo }); }, [mudo, send, status]);
   useEffect(() => { logEndRef.current?.scrollIntoView({ block: "nearest" }); }, [legendas.length]);
 
   async function enviar(e: React.FormEvent | React.KeyboardEvent) {
     e.preventDefault();
+    await enviarTexto(texto);
+  }
+
+  async function enviarTexto(valor: string) {
     if (fase !== "ouvindo" || enviando) return;
-    if (!texto.trim()) { setErro("Escreva sua resposta antes de enviar."); return; }
-    if (texto.length > 2000) { setErro("Sua resposta é longa demais. Resuma em até 2000 caracteres."); return; }
+    if (!valor.trim()) { setErro(porVoz ? "Ainda não ouvimos sua resposta. Fale ou escreva antes de enviar." : "Escreva sua resposta antes de enviar."); return; }
+    if (valor.length > 2000) { setErro("Sua resposta é longa demais. Resuma em até 2000 caracteres."); return; }
     setEnviando(true);
+    voz?.listen(false);
     try {
-      await onAnswer(texto);
-      setTexto(""); setErro(null); setAviso(null);
+      await onAnswer(valor.slice(0, 2000));
+      setTexto(""); setErro(null); setAviso(null); setEditado(false);
     } catch (err) {
       setErro((err as Error).message || "Não foi possível registrar sua resposta. Tente de novo.");
+      if (voz?.live) voz.listen(true);
     } finally { setEnviando(false); }
   }
 
@@ -292,6 +382,12 @@ function Escritorio({ script, respostas, onAnswer, onRecomecar, onConcluir }: {
   }
 
   const pessoa = cena ? pessoaDe(cena.npc) : null;
+  const badge = voiceBadge(voz);
+  const rotulo = !ambientePronto ? FASE_LABEL.preparando
+    : voz?.state === "connecting" ? `Chamando ${pessoa?.nome ?? "o escritório"} por voz…`
+    : porVoz && fase === "respondendo" && pessoa ? (agentSpeaking ? `${pessoa.nome} está falando` : `${pessoa.nome} vai falar…`)
+    : porVoz && fase === "ouvindo" ? (enviando ? "Enviando sua resposta…" : voz?.muted ? "Microfone desligado" : "Ouvindo você")
+    : FASE_LABEL[fase];
   const origem = cena?.origem === "memoria" ? "Lembrou da conversa anterior" : cena && cena.turn > 0 ? "Aprofundando" : null;
 
   return (
@@ -300,9 +396,19 @@ function Escritorio({ script, respostas, onAnswer, onRecomecar, onConcluir }: {
         <Marca />
         <p className={s.status} role="status" aria-live="polite">
           <span className={s.dot} data-on={fase === "ouvindo" || fase === "respondendo" || undefined} aria-hidden="true" />
-          {ambientePronto ? FASE_LABEL[fase] : FASE_LABEL.preparando}
+          {rotulo}
         </p>
         <nav className={s.controls} aria-label="Controles da simulação">
+          {voz && <span className={s.badge} data-voice={badge.on || undefined} title={badge.detalhe}>{badge.label}</span>}
+          {voz && (voz.state === "off" || voz.state === "error") && !fim && (
+            <button type="button" className="btn btn-sm" onClick={() => void voz.start()}>Ativar voz</button>
+          )}
+          {voz && (porVoz || voz.state === "connecting") && (
+            <button type="button" className="btn btn-sm" onClick={() => void voz.stop()}>Usar texto</button>
+          )}
+          {voz && voz.state !== "unavailable" && voz.state !== "checking" && (
+            <button type="button" className="btn btn-sm" aria-expanded={audioAberto} onClick={() => setAudioAberto((a) => !a)}>Áudio</button>
+          )}
           <button type="button" className="btn btn-sm" aria-pressed={mudo} onClick={() => setMudo((m) => !m)}>{mudo ? "Som desligado" : "Silenciar"}</button>
           {onRecomecar && <button type="button" className="btn btn-sm" onClick={onRecomecar}>Recomeçar</button>}
           <Link className="btn btn-sm btn-ghost" href={script.demo ? "/" : "/app"}>Sair</Link>
@@ -345,7 +451,16 @@ function Escritorio({ script, respostas, onAnswer, onRecomecar, onConcluir }: {
                 {personalidade(pessoa) && <Tip side="end">{personalidade(pessoa)}</Tip>}
               </div>
               {origem && <span className={s.origin} data-kind={cena.origem === "memoria" ? "memoria" : "aprofunda"}>{origem}</span>}
-              <p className={s.line}>{cena.fala}</p>
+              {oculto ? (
+                <p className={s.voiceOnly} data-on={agentSpeaking || undefined}>
+                  <span className={s.bars} aria-hidden="true"><i /><i /><i /><i /></span>
+                  {fase === "respondendo" ? (agentSpeaking ? `${pessoa.nome} está falando` : `${pessoa.nome} vai falar…`) : "Sua vez: responda falando"}
+                </p>
+              ) : <p className={s.line}>{cena.fala}</p>}
+              {porVoz && (
+                <button type="button" className={`btn btn-sm btn-ghost ${s.showText}`} aria-pressed={mostrarTexto}
+                  onClick={() => setMostrarTexto((m) => !m)}>{mostrarTexto ? "Ocultar texto" : "Mostrar texto"}</button>
+              )}
             </article>
           ) : fase === "concluida" ? (
             <article className={s.npcCard}>
@@ -359,16 +474,42 @@ function Escritorio({ script, respostas, onAnswer, onRecomecar, onConcluir }: {
           )}
 
           {aviso && <p className={s.hint} role="status">{aviso}</p>}
+          {voz && porVoz && voz.devices.canPickSpeaker && voz.devices.speakers.length > 0 && (
+            <div className={s.outPick}>
+              <label htmlFor={`${inputId}-out`}>Saída de áudio</label>
+              <select id={`${inputId}-out`} value={voz.devices.speakerId} onChange={(e) => void voz.devices.chooseSpeaker(e.target.value)}>
+                {voz.devices.speakers.map((d) => <option key={d.id} value={d.id}>{d.label}</option>)}
+              </select>
+              <button type="button" className="btn btn-sm" disabled={voz.devices.speakerTesting} onClick={() => void voz.devices.testSpeaker()}>
+                {voz.devices.speakerTesting ? "Tocando…" : "Testar"}</button>
+            </div>
+          )}
+          {voz && audioAberto && <AudioPanel devices={voz.devices} micBusy={false} live />}
+          {voz?.reason && !porVoz && voz.state !== "connecting" && <p className={s.hint} role="status">{voz.reason}</p>}
+          {voz?.audioBlocked && (
+            <p className={s.hint} role="alert">O navegador pausou o som. <button type="button" className="btn btn-sm" onClick={voz.playVoices}>Ouvir</button></p>
+          )}
 
           {cena && ambientePronto && (
             <form className={s.answer} onSubmit={enviar} noValidate>
-              <label htmlFor={inputId} className="label">Sua resposta para {pessoa?.nome}</label>
-              <textarea ref={inputRef} id={inputId} className={s.textarea} rows={3} maxLength={2000} value={texto}
+              <label htmlFor={inputId} className="label">{porVoz ? `Fale sua resposta para ${pessoa?.nome}` : `Sua resposta para ${pessoa?.nome}`}</label>
+              {porVoz && (
+                <div className={s.listen} data-on={fase === "ouvindo" && !enviando || undefined}>
+                  <meter min={0} max={1} value={fase === "ouvindo" ? voz!.micLevel : 0} aria-label="Nível do seu microfone" />
+                  <span>{fase !== "ouvindo" ? `Espere ${pessoa?.nome} terminar de falar.`
+                    : enviando ? "Enviando…"
+                    : editado ? "Revise e toque em Responder."
+                    : voz!.heard && !voz!.interim ? "Quando você parar de falar, a resposta é enviada."
+                    : oculto ? (voz!.interim || voz!.heard ? "Ouvindo…" : "Pode falar.") : "Pode falar. O que você disser aparece aqui."}</span>
+                </div>
+              )}
+              <textarea ref={inputRef} id={inputId} className={s.textarea} hidden={oculto} rows={3} maxLength={2000} value={texto}
                 disabled={fase !== "ouvindo" || enviando} aria-invalid={!!erro} aria-describedby={erro ? `${inputId}-err` : undefined}
-                onChange={(e) => { setTexto(e.target.value); if (erro) setErro(null); }}
+                placeholder={porVoz && fase === "ouvindo" ? "Ouvindo…" : undefined}
+                onChange={(e) => { setTexto(e.target.value); if (porVoz) setEditado(true); if (erro) setErro(null); }}
                 onKeyDown={(e) => { if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) void enviar(e); }} />
               {erro && <p id={`${inputId}-err`} className="alert alert-error" role="alert">{erro}</p>}
-              {cena.alternativas.length > 0 && (
+              {!oculto && cena.alternativas.length > 0 && (
                 <div className={s.chips} aria-label="Sugestões para começar">
                   {cena.alternativas.map((a) => (
                     <button key={a} type="button" className="chip" disabled={fase !== "ouvindo"} onClick={() => { setTexto(a); inputRef.current?.focus(); }}>{a}</button>
@@ -376,13 +517,20 @@ function Escritorio({ script, respostas, onAnswer, onRecomecar, onConcluir }: {
                 </div>
               )}
               <div className={s.answerFoot}>
-                <button type="submit" className="btn btn-primary" disabled={fase !== "ouvindo" || enviando}>{enviando ? <span className="spinner" aria-hidden /> : null}Responder</button>
-                <span className={s.small}>Ctrl + Enter também envia</span>
+                <button type="submit" className="btn btn-primary" disabled={fase !== "ouvindo" || enviando}>{enviando ? <span className="spinner" aria-hidden /> : null}{oculto ? "Enviar agora" : "Responder"}</button>
+                {porVoz ? (
+                  <>
+                    <button type="button" className="btn" disabled={fase !== "ouvindo" || enviando || !texto}
+                      onClick={() => { voz!.clear(); setTexto(""); setEditado(false); }}>Falar de novo</button>
+                    <button type="button" className="btn btn-ghost" aria-pressed={voz!.muted} onClick={() => void voz!.toggleMute()}>
+                      {voz!.muted ? "Ligar microfone" : "Desligar microfone"}</button>
+                  </>
+                ) : <span className={s.small}>Ctrl + Enter também envia</span>}
               </div>
             </form>
           )}
 
-          <ol className={s.captions} aria-label="Legendas da conversa">
+          <ol className={s.captions} aria-label="Legendas da conversa" hidden={oculto}>
             {legendas.map((l, i) => (
               <li key={i} data-me={l.participante || undefined}><b>{l.quem}</b> {l.texto}</li>
             ))}
