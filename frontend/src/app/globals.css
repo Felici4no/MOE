@@ -1,54 +1,66 @@
-/* MOE · uma família (Host Grotesk), fundo branco, azul só para ação e destaque de fit. */
+/* MOE · My Office Experience: papel creme, tinta marinho, amarelo de sinal e cores do escritório em pixel art.
+   Títulos em Space Grotesk caixa alta, rótulos em IBM Plex Mono, texto em Instrument Sans; cantos retos. */
 :root {
-  --ground: #ffffff;
-  --surface: #f7f6f6;
-  --surface-2: #efeeed;
-  --line: #e0e0df;
-  --line-strong: #c9c8c7;
-  --ink: #201f20;
-  --ink-2: #494949;
-  --ink-mute: #606060;
-  --inverse: #141314;
-  --on-inverse: #fcfcfd;
-  --on-inverse-mute: #b9b8b8;
-  --accent: #2e5bff;
-  --accent-hover: #1f47e0;
-  --accent-tint: #eef2ff;
-  --accent-soft: #dfe6ff;
-  --accent-ink: #1d3fc4;
+  --ground: #f5f2e9;
+  --surface: #ffffff;
+  --surface-2: #ebe6da;
+  --line: #d6cfbf;
+  --line-strong: #141821;
+  --ink: #141821;
+  --ink-2: #3d3a33;
+  --ink-mute: #6b665c;
+  --inverse: #141821;
+  --on-inverse: #f5f2e9;
+  --on-inverse-mute: #b9b4a8;
+  /* ação e foco: teal do deck; sinal (botão principal, destaques): amarelo */
+  --accent: #2f6f7c;
+  --accent-hover: #245a65;
+  --accent-tint: #fdf3c4;
+  --accent-soft: #fbe58a;
+  --accent-ink: #245a65;
+  --signal: #f8d94b;
+  --signal-hover: #f2cb2a;
+  --coral: #f08c5e;
+  --mint: #a0d4bc;
+  --sky: #bfd8e6;
+  --rose: #e3a6c8;
+  --teal: #2f6f7c;
 
   /* apelidos usados por telas antigas */
   --paper: var(--ground);
   --ink-soft: var(--ink-2);
-  --field-line: #8f8e8d;
+  --field-line: #141821;
   --grifo: var(--accent-soft);
-  --grifo-deep: var(--accent);
-  --q: var(--accent);
+  --grifo-deep: var(--signal);
+  --q: var(--teal);
   --on-ink: var(--on-inverse);
   --on-ink-mute: var(--on-inverse-mute);
   --field-line-on-ink: #6f6e6e;
 
-  --fazer: #b3261e;
-  --gente: #157a52;
-  --pensar: #2e5bff;
+  --fazer: #c2502a;
+  --gente: #2e7d5b;
+  --pensar: #2f6f7c;
   --forca: #8e5500;
-  --ok: #157a52;
-  --ok-ground: #e7f4ee;
+  --ok: #2e7d5b;
+  --ok-ground: #dff1e7;
   --warn: #8a5300;
-  --warn-ground: #fbf1e1;
+  --warn-ground: #fbeec9;
   --danger: #b3261e;
-  --danger-ground: #fdeceb;
+  --danger-ground: #fbe3df;
 
   --space-1: 4px; --space-2: 8px; --space-3: 12px; --space-4: 16px; --space-5: 20px; --space-6: 24px;
   --space-8: 32px; --space-10: 40px; --space-12: 48px; --space-16: 64px; --space-24: 96px;
   --control-height: 44px;
-  --radius: 8px;
-  --radius-lg: 12px;
-  --pill: 9999px;
-  --shadow: 0 1px 2px rgb(20 19 20 / 5%), 0 12px 32px -16px rgb(20 19 20 / 20%);
-  --ease: cubic-bezier(.16, 1, .3, 1);
+  --radius: 0px;
+  --radius-lg: 0px;
+  --pill: 0px;
+  --border: 2px;
+  --shift: 4px;
+  --shadow: var(--shift) var(--shift) 0 var(--ink);
+  --ease: cubic-bezier(.2, .7, .2, 1);
   --sans: var(--font-sans), system-ui, sans-serif;
-  --display: var(--sans);
+  --display: var(--font-display), var(--sans);
+  --mono: var(--font-mono), ui-monospace, monospace;
   --read: var(--sans);
   --container: 1200px;
   --gutter: 24px;
@@ -201,3 +213,48 @@ input[type="range"]:focus-visible::-webkit-slider-thumb { box-shadow: 0 0 0 4px 
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
 }
+
+/* ---------- Identidade MOE (deck My Office Experience) ---------- */
+h1, h2, h3 { font-family: var(--display); font-weight: 700; letter-spacing: -.02em; }
+h1 { text-transform: uppercase; letter-spacing: -.035em; line-height: 1; }
+.eyebrow, .label, .field label, .stamp, .hint, .chip, .tag, .page-head p:first-child:not(:only-child) {
+  font-family: var(--mono); letter-spacing: .06em;
+}
+.eyebrow { text-transform: uppercase; font-size: 12px; color: var(--ink); background: var(--signal); width: fit-content; padding: 4px 10px; }
+.label, .field label { text-transform: uppercase; font-size: 12px; font-weight: 500; }
+::selection { background: var(--signal); }
+:focus-visible { outline: 2px solid var(--ink); outline-offset: 3px; border-radius: 0; }
+
+.btn {
+  font-family: var(--display); font-weight: 700; letter-spacing: -.01em;
+  border: var(--border) solid var(--ink); background: var(--surface); color: var(--ink);
+  box-shadow: var(--shadow); transition: transform var(--ease) .12s, box-shadow var(--ease) .12s, background .12s;
+}
+.btn:hover { border-color: var(--ink); background: var(--surface-2); }
+.btn:active { transform: translate(var(--shift), var(--shift)); box-shadow: 0 0 0 var(--ink); }
+.btn[disabled] { box-shadow: none; }
+.btn-primary { background: var(--signal); border-color: var(--ink); color: var(--ink); }
+.btn-primary:hover { background: var(--signal-hover); border-color: var(--ink); }
+.btn-ghost { box-shadow: none; border-color: transparent; background: transparent; }
+.btn-ghost:hover { background: var(--surface-2); border-color: transparent; }
+.btn-paper { box-shadow: none; }
+.btn-sm { box-shadow: 2px 2px 0 var(--ink); }
+.btn-sm:active { transform: translate(2px, 2px); }
+.icon-btn { border-radius: 0; }
+
+.field input, .field select, .field textarea { border: var(--border) solid var(--ink); background: var(--surface); }
+.field input:focus, .field select:focus, .field textarea:focus { border-color: var(--ink); box-shadow: var(--shadow); }
+.chip { border: 1px solid var(--ink); background: var(--surface); color: var(--ink); }
+.tag { color: var(--ink); }
+.tag[data-domain] { color: #fff; }
+.alert { border: var(--border) solid currentColor; }
+mark, .grifo { background: var(--accent-soft); border-radius: 0; }
+@keyframes grifo { from { background-color: transparent; } to { background-color: var(--accent-soft); } }
+.tip > button { border-radius: 0; border-color: var(--ink); }
+.tip > [role="tooltip"] { border-radius: 0; font-family: var(--sans); }
+.spinner { border-radius: 50%; }
+.stamp::before { border-radius: 0; }
+input[type="checkbox"], input[type="radio"] { accent-color: var(--ink); }
+
+/* Faixa coral e padrão de pixels, como nos slides */
+.moe-rule { display: block; width: 100px; height: 8px; background: var(--coral); border: 0; margin: var(--space-6) 0; }

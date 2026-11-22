@@ -1,4 +1,4 @@
-/* Simulação no escritório, na identidade MOE: fundo branco, Host Grotesk, azul só para ação e "sua vez".
+/* Simulação no escritório, na identidade MOE (deck My Office Experience): fundo branco, Host Grotesk, azul só para ação e "sua vez".
    O escritório em pixel art fica numa moldura escura, como a cena da sala da Lia. */
 
 .entry, .office, .result { min-height: 100dvh; background: var(--ground); color: var(--ink); display: flex; flex-direction: column; }
@@ -26,7 +26,7 @@
 .cast strong { display: block; font-weight: 500; }
 .role { display: block; font-size: 14px; color: var(--ink-2); }
 .persona { display: block; font-size: 13px; color: var(--ink-mute); margin-top: 4px; }
-.avatar { width: 36px; height: 36px; border-radius: 50%; display: grid; place-items: center; flex: none; background: var(--surface-2); color: var(--ink-2); font-weight: 500; font-size: 14px; }
+.avatar { width: 36px; height: 36px; border-radius: 0; display: grid; place-items: center; flex: none; background: var(--tone, var(--sky)); color: var(--ink); font-family: var(--display); font-weight: 700; font-size: 15px; border: 2px solid var(--ink); }
 
 /* Elenco por nível, da esquerda para a direita: time → gerência → diretoria */
 .levels { list-style: none; margin: var(--space-8) 0 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: var(--space-4); position: relative; }

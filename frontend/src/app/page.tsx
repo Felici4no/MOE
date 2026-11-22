@@ -47,7 +47,7 @@ const FAQ = [
 function RankingShot() {
   return (
     <div className={s.browser} role="img" aria-label="Tela do MOE com o ranking de fit da vaga Analista de Customer Success, com dados fictícios">
-      <div className={s.chrome} aria-hidden><i /><i /><i /><span>resona.app/empresa/vagas/cs-pleno</span></div>
+      <div className={s.chrome} aria-hidden><i /><i /><i /><span>moe.app/empresa/vagas/cs-pleno</span></div>
       <div className={s.app} aria-hidden>
         <div className={s.appTop}>
           <div><small>Vaga</small><b>Analista de Customer Success</b></div>

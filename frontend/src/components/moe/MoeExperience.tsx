@@ -132,10 +132,18 @@ function CompanyRun({ cenario, sessao: sessaoId }: { cenario: string | null; ses
 function Marca() {
   return (
     <Link href="/" className={s.brand} aria-label="MOE, início">
-      <Wordmark />
+      <Wordmark sub={false} />
       <span className={s.brandSub}>Simulação no escritório</span>
     </Link>
   );
+}
+
+/** Cor do personagem, como os fundos dos retratos nos slides (estável pelo nome). */
+const TONS = ["var(--sky)", "var(--mint)", "var(--rose)", "var(--signal)", "var(--coral)"];
+function tom(nome: string): React.CSSProperties {
+  let h = 0;
+  for (const c of nome) h = (h * 31 + c.charCodeAt(0)) >>> 0;
+  return { ["--tone" as string]: TONS[h % TONS.length] } as React.CSSProperties;
 }
 
 function personalidade(p: Script["cast"][number]) {
@@ -179,7 +187,7 @@ function Entrada({ script, onEntrar, voz }: { script: Script; onEntrar: (comVoz:
                 <ul className={s.levelCast}>
                   {script.cast.filter((p) => script.etapaDe[p.key] === etapa).map((p) => (
                     <li key={p.key}>
-                      <span className={s.avatar} aria-hidden>{p.nome[0]}</span>
+                      <span className={s.avatar} style={tom(p.nome)} aria-hidden>{p.nome[0]}</span>
                       <span><strong>{p.nome}</strong><span className={s.role}>{p.papel}</span>
                         {personalidade(p) && <small className={s.persona}>{personalidade(p)}</small>}</span>
                     </li>
@@ -192,7 +200,7 @@ function Entrada({ script, onEntrar, voz }: { script: Script; onEntrar: (comVoz:
           <ul className={s.cast} aria-label="Personagens">
             {script.cast.map((p) => (
               <li key={p.key}>
-                <span className={s.avatar} aria-hidden>{p.nome[0]}</span>
+                <span className={s.avatar} style={tom(p.nome)} aria-hidden>{p.nome[0]}</span>
                 <span><strong>{p.nome}</strong><span className={s.role}>{p.papel}</span>
                   {personalidade(p) && <small className={s.persona}>{personalidade(p)}</small>}</span>
               </li>
@@ -446,7 +454,7 @@ function Escritorio({ script, respostas, onAnswer, onRecomecar, onConcluir, voz 
           {pessoa && cena && ambientePronto ? (
             <article className={s.npcCard} aria-live="polite">
               <div className={s.npcHead}>
-                <span className={s.avatar} aria-hidden>{pessoa.nome[0]}</span>
+                <span className={s.avatar} style={tom(pessoa.nome)} aria-hidden>{pessoa.nome[0]}</span>
                 <h2 className={s.npcName}>{pessoa.nome} <span>· {pessoa.papel}</span></h2>
                 {personalidade(pessoa) && <Tip side="end">{personalidade(pessoa)}</Tip>}
               </div>
@@ -566,7 +574,7 @@ function ResultadoDemo({ script, respostas, onRepetir }: { script: Script; respo
             const p = script.cast.find((x) => x.key === c.npc)!;
             return (
               <li key={c.id} className={s.conv}>
-                <p className={s.convWho}><span className={s.avatar} aria-hidden>{p.nome[0]}</span><b>{p.nome}</b> · {p.papel}</p>
+                <p className={s.convWho}><span className={s.avatar} style={tom(p.nome)} aria-hidden>{p.nome[0]}</span><b>{p.nome}</b> · {p.papel}</p>
                 <p className={s.convNpc}>{c.fala}</p>
                 <blockquote className={s.quote}>{r}</blockquote>
               </li>
@@ -655,7 +663,7 @@ function ResultadoEmpresa({ script, session, onChange }: { script: Script; sessi
           <ol className={s.convList}>
             {conversas.map((c, i) => (
               <li key={i} className={s.conv}>
-                <p className={s.convWho}><span className={s.avatar} aria-hidden>{c.who[0]}</span><b>{c.who}</b> · {c.role}{c.stage && <span className={s.convStage}>{c.stage}</span>}</p>
+                <p className={s.convWho}><span className={s.avatar} style={tom(c.who)} aria-hidden>{c.who[0]}</span><b>{c.who}</b> · {c.role}{c.stage && <span className={s.convStage}>{c.stage}</span>}</p>
                 <p className={s.convNpc}>{c.npc}</p>
                 <blockquote className={s.quote}>{c.quote}</blockquote>
                 {c.tags.length > 0
