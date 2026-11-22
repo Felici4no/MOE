@@ -28,6 +28,7 @@ class Database:
 
     def create_all(self) -> None:
         from app import models  # noqa: F401  registra as tabelas
+        from app.moe import models as _moe  # noqa: F401  tabelas do MOE
         Base.metadata.create_all(self.engine)
         self._add_missing_columns()
 

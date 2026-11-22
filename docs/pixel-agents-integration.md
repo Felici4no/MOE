@@ -2,6 +2,8 @@
 
 ## Estado
 
+> **Atualização (sprint MOE, branch `feat/moe-playable`):** o escritório agora é montado por uma entrada MOE própria (`office/moe-webview/`) que reaproveita o motor upstream sem alterá-lo, com Maia, Léo e Nara como personagens reais e o cenário S01 jogável. O build foi validado em localhost e em Preview Vercel. Detalhes, decisões e pendências em [`docs/moe/README.md`](moe/README.md). As seções abaixo descrevem o ponto de partida.
+
 Este trabalho adiciona o **repositório original Pixel Agents como submódulo Git**, fixado no commit `4dd14d612fd37d89ffbbc977959f572395c4eec8` (2026-11-10), além de uma rota Next.js `/office` e script de build para o webview React/Canvas original.
 
 **Não é uma reimplementação da pixel art.** Os sprites, personagens, mobiliário, tiles, renderer e animações são do projeto upstream. Ainda não são agentes de RH ligados à Agora. O webview original ainda carrega controles de agentes de programação e deverá ser adaptado após o primeiro build.

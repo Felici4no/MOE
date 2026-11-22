@@ -48,8 +48,10 @@ export function Shell({ children }: { children: React.ReactNode }) {
   const admin = me.tenant && me.tenant.role !== "participant";
   const items = [
     ...(admin ? [{ href: "/app/empresa", label: "Pessoas", icon: <Building /> },
-      { href: "/app/empresa/analises", label: "Análises", icon: <Chart /> }] : []),
-    ...(!admin ? [{ href: "/app", label: "Minha entrevista", icon: <Home /> }] : []),
+      { href: "/app/empresa/analises", label: "Análises", icon: <Chart /> },
+      { href: "/app/empresa/moe", label: "Simulações MOE", icon: <Chat /> }] : []),
+    ...(!admin ? [{ href: "/app", label: "Minha entrevista", icon: <Home /> },
+      { href: "/app/moe", label: "Simulações MOE", icon: <Chat /> }] : []),
   ];
   const inRoom = path.startsWith("/app/entrevista/");
 

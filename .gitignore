@@ -23,3 +23,14 @@ materiais/texto/
 .impeccable/review/
 .runtime-*.log
 *.egg-info/
+
+# MOE / Office build artifacts
+frontend/public/office-engine/
+vendor/pixel-agents/webview-ui/moe/
+/.next/
+/.vercel
+/next-env.d.ts
+/tsconfig.tsbuildinfo
+/test-results/
+frontend/test-results/
+frontend/playwright-report/

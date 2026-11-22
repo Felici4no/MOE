@@ -1,0 +1,18 @@
+# Upload para builds remotos da Vercel (CLI). O escritório é compilado no build.
+node_modules
+**/node_modules
+.next
+**/.next
+frontend/public/office-engine
+vendor/pixel-agents/webview-ui/moe
+vendor/pixel-agents/dist
+vendor/pixel-agents/e2e
+.runtime*
+backend
+deploy
+infra
+materiais
+test-results
+**/test-results
+playwright-report
+docs/capturas
