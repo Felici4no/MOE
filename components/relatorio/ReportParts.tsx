@@ -35,7 +35,7 @@ export function ReportCover({ doc }: { doc: ReportDocument }) {
         </div>
         <div className="grid-12 mt-[clamp(32px,6vw,80px)] gap-y-10">
           <div className="col-span-4 md:col-span-8 lg:col-span-7">
-            <p className="display-xl">Mapa de<br />Talentos</p>
+            <p className="display-xl">Mapa de{' '}<br />Talentos</p>
             <h1 id="capa-nome" className="display-l mt-[clamp(28px,5vw,64px)] max-w-[16ch] break-words">
               <span className="mark">{doc.participantName}</span>
             </h1>
@@ -98,7 +98,7 @@ export function ChapterIntro({ doc }: { doc: ReportDocument }) {
     <section id="seu-mapa" aria-labelledby="seu-mapa-title" className="scroll-mt-4">
       <AsciiDivider label="01 / Seu mapa" seed={5} />
       <div className="shell grid-12 gap-y-8 py-[clamp(56px,8vw,120px)]">
-        <h2 id="seu-mapa-title" className="display-xl col-span-4 md:col-span-8 lg:col-span-4">Seu<br />mapa</h2>
+        <h2 id="seu-mapa-title" className="display-xl col-span-4 md:col-span-8 lg:col-span-4">Seu{' '}<br />mapa</h2>
         <div className="col-span-4 md:col-span-8 lg:col-span-7 lg:col-start-6">
           <p className="display-m">{abertura}</p>
           {resto.map(p => <p key={p} className="body-ed mt-6 text-lg">{p}</p>)}
@@ -150,7 +150,7 @@ export function ChapterTalents({ doc }: { doc: ReportDocument }) {
       <AsciiDivider label="02 / Seus talentos" seed={8} />
       <div className="shell pt-[clamp(56px,8vw,120px)]">
         <div className="grid-12 gap-y-6 pb-[clamp(32px,5vw,64px)]">
-          <h2 id="talentos-title" className="display-xl col-span-4 md:col-span-8 lg:col-span-7">Seus<br />talentos</h2>
+          <h2 id="talentos-title" className="display-xl col-span-4 md:col-span-8 lg:col-span-7">Seus{' '}<br />talentos</h2>
           <p className="col-span-4 md:col-span-8 lg:col-span-4 lg:col-start-9 self-end text-ink-soft">
             Um talento só aparece aqui quando pelo menos duas falas diferentes suas o sustentam. <strong className="text-ink">Forte</strong>: três ou mais evidências. <strong className="text-ink">Moderado</strong>: duas.
           </p>
@@ -217,7 +217,7 @@ export function ChapterDiscovery({ doc }: { doc: ReportDocument }) {
       <div className="shell grid-12 gap-y-8 py-[clamp(56px,8vw,120px)]">
         <div className="col-span-4 md:col-span-8 lg:col-span-5">
           <p className="meta meta-soft">04 / Ainda em descoberta</p>
-          <h2 id="descoberta-title" className="display-xl mt-4">Ainda em<br />descoberta</h2>
+          <h2 id="descoberta-title" className="display-xl mt-4">Ainda em{' '}<br />descoberta</h2>
         </div>
         <div className="col-span-4 md:col-span-8 lg:col-span-6 lg:col-start-7">
           {d && info ? (

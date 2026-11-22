@@ -15,7 +15,8 @@ let cachedPrompt: string | null = null;
 
 export async function loadAnalystPrompt(): Promise<string> {
   if (cachedPrompt) return cachedPrompt;
-  const md = await readFile(path.join(process.cwd(), 'prompts', 'prompts_mapa_de_talentos.md'), 'utf8');
+  // Normaliza CRLF: no Windows o Git pode fazer checkout com \r\n.
+  const md = (await readFile(path.join(process.cwd(), 'prompts', 'prompts_mapa_de_talentos.md'), 'utf8')).replace(/\r\n?/g, '\n');
   const secao = md.split('## PROMPT B')[1];
   const bloco = secao?.match(/```\n([\s\S]*?)```/);
   if (!bloco) throw new Error('Prompt B não encontrado na documentação');

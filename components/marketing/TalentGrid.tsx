@@ -16,7 +16,7 @@ export function TalentGrid() {
         <div className="grid-12 items-end gap-y-6">
           <div className="col-span-4 md:col-span-5 lg:col-span-7">
             <p className="meta meta-soft">04 / Catálogo</p>
-            <h2 id="talentos-title" className="display-xl mt-5">16 talentos.<br />4 domínios.</h2>
+            <h2 id="talentos-title" className="display-xl mt-5">16 talentos.{' '}<br />4 domínios.</h2>
           </div>
           <p className="col-span-4 md:col-span-3 lg:col-span-4 lg:col-start-9 text-ink-soft">
             Nomes do dia a dia, para quem trabalha. Selecione um tema para ver o que ele significa e como costuma aparecer numa história.

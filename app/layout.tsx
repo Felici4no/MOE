@@ -20,7 +20,7 @@ export const viewport: Viewport = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="pt-BR" className={`${display.variable} ${sans.variable} ${mono.variable}`}>
+    <html lang="pt-BR" data-scroll-behavior="smooth" className={`${display.variable} ${sans.variable} ${mono.variable}`}>
       <body>
         <a href="#conteudo" className="skip-link">Pular para o conteúdo</a>
         {children}

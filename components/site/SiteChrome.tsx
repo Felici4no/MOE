@@ -31,7 +31,7 @@ export function SiteHeader() {
         <nav aria-label="Principal" className="hidden lg:block">
           <ul className="flex items-center gap-8">
             {NAV.map(item => (
-              <li key={item.href}><a href={item.href} className="meta no-underline hover:underline">{item.label}</a></li>
+              <li key={item.href}><Link href={item.href} className="meta no-underline hover:underline">{item.label}</Link></li>
             ))}
           </ul>
         </nav>
@@ -58,8 +58,8 @@ export function SiteFooter() {
           <p className="meta meta-soft mb-4">Navegação</p>
           <ul className="space-y-2">
             <li><Link href="/">Início</Link></li>
-            <li><a href="/#como-funciona">Como funciona</a></li>
-            <li><a href="/#talentos">Os 16 talentos</a></li>
+            <li><Link href="/#como-funciona">Como funciona</Link></li>
+            <li><Link href="/#talentos">Os 16 talentos</Link></li>
             <li><Link href="/entrevista">Entrevista</Link></li>
             <li><Link href="/relatorio/demo-tres">Relatório de exemplo</Link></li>
           </ul>

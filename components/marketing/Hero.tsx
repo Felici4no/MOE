@@ -15,7 +15,7 @@ export function Hero() {
             relatos → padrões → descobertas
           </p>
           <h1 id="hero-title" className="display-monument xl:pl-10">
-            Você é mais<br />do que seu<br /><span className="mark">cargo.</span>
+            Você é mais{' '}<br />do que seu{' '}<br /><span className="mark">cargo.</span>
           </h1>
         </div>
 

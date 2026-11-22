@@ -68,7 +68,7 @@ export function ComoFunciona() {
         <div className="col-span-4 md:col-span-8 lg:col-span-4">
           <div className="lg:sticky lg:top-10">
             <p className="meta meta-soft">03 / Método</p>
-            <h2 id="como-title" className="display-xl mt-5">Como<br />funciona</h2>
+            <h2 id="como-title" className="display-xl mt-5">Como{' '}<br />funciona</h2>
             <div className="panel relative mt-10 hidden h-[260px] lg:block">
               <AsciiPortrait className="absolute inset-0" />
             </div>
@@ -119,7 +119,7 @@ export function Confianca() {
         <div className="grid-12 gap-y-8">
           <p className="meta meta-soft col-span-4 md:col-span-8 lg:col-span-3">06 / Confiança e autonomia</p>
           <h2 id="confianca-title" className="display-xl col-span-4 md:col-span-8 lg:col-span-9">
-            Suas histórias.<br />Suas evidências.<br /><span className="mark">Sua decisão.</span>
+            Suas histórias.{' '}<br />Suas evidências.{' '}<br /><span className="mark">Sua decisão.</span>
           </h2>
         </div>
         <dl className="mt-[clamp(48px,7vw,96px)] grid gap-0 border-t-2 border-ink md:grid-cols-2">

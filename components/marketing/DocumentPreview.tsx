@@ -42,7 +42,7 @@ export function DocumentPreview() {
         <div className="col-span-4 md:col-span-8 lg:col-span-8 grid gap-6 sm:grid-cols-3 sm:items-start" aria-label="Prévia das páginas do relatório de exemplo, com dados fictícios" role="group">
           <Sheet n="01">
             <p className="meta text-[9px]">Documento pessoal · {codigoDocumento(doc.id)}</p>
-            <p className="font-display mt-4 text-[clamp(1.2rem,2.2vw,1.9rem)] font-bold uppercase leading-[0.9] tracking-tight">Mapa de<br />Talentos</p>
+            <p className="font-display mt-4 text-[clamp(1.2rem,2.2vw,1.9rem)] font-bold uppercase leading-[0.9] tracking-tight">Mapa de{' '}<br />Talentos</p>
             <pre className="ascii mt-4 text-[clamp(5px,0.65vw,8px)] leading-[1.05]" aria-hidden="true">{fp}</pre>
             <p className="font-display mt-4 text-base font-bold leading-tight"><span className="mark">{doc.participantName}</span></p>
             <dl className="mt-3 space-y-1 text-[10px] leading-snug">
